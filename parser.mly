@@ -22,10 +22,10 @@ block: /*type pblock = (inv list) * (pinstr list)*/
 
 ineq: /*type pineq = (Some var * int) list*/
      expr GEQ ZERO { [$1] }
-    |expr LEQ ZERO { [List.map (fun x -> fst x, -snd x) $1] }
-    |expr GT ZERO  { [(None, -1)::$1] }
-    |expr LT ZERO  { [(None, 1)::$1] }
-    |expr EQ ZERO  { [$1; List.map (fun x -> fst x, -snd x) $1] }
+    |expr LEQ ZERO { [((fst $1), List.map (fun x -> fst x, -snd x) (snd $1))] }
+    |expr GT ZERO  { [((fst $1), (None, -1)::(snd $1))] }
+    |expr LT ZERO  { [((fst $1), (None, -1)::(List.map (fun x -> fst x, -snd x) (snd $1)))] }
+    |expr EQ ZERO  { [$1;((fst $1),List.map(fun x -> fst x, -snd x)(snd $1))] }
 
 instr:
       VAR EQUALS expr SEMICOLON                         { Types.PAssignment ($1, $3) }
@@ -48,10 +48,10 @@ atom_expr: /*type patom_expr = pvar option * int*/
 	 |NUMBER TIMES NUMBER      { None, $1 * $3 }
 	 ;
 	   
-expr: /*type pexpr = patom_expr list*/
-     atom_expr           { [$1] }
-    |expr PLUS atom_expr { $3::$1 }
-    |expr MINUS atom_expr{ ( fst $3, - snd $3 )::$1 } /*conflicts?*/
+expr: /*type pexpr = int * patom_expr list*/
+     atom_expr           { (Parsing.rhs_start_pos 1).Lexing.pos_lnum, [$1] }
+    |expr PLUS atom_expr { (fst $1), $3::(snd $1) }
+    |expr MINUS atom_expr{ (fst $1), ( fst $3, - snd $3 )::(snd $1) }
     ;
 
 %%

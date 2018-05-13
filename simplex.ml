@@ -40,9 +40,9 @@ module Fraction =
       | _ -> true
 
     let geq x y = match x, y with
-      |Infty, _               -> true
+      |_, Infty               -> true
+      |Infty, _               -> false
       |Frac(a, b), Frac(c, d) -> a * d >= b * c
-      |_ , _                  -> false
 
     let eq x y = match x, y with
       |Infty, Infty           -> true
@@ -128,12 +128,13 @@ let simplex a b k l =
 
 (***** Test *****)
 
+		 (*
 let a1 = [|[| foi 2 ; foi 3 ; foi 4 |] ; [|foi 3 ; foi 2 ; foi 1 |] ; [|foi 2 ; foi 5 ; foi 3 |]|]
 let b1 = [| foi 0 ; foi 10 ; foi 15 |]
 let k1 = 2
 let l1 = 2
 
-(* let x = simplex a1 b1 k1 l1 *)
+let x = simplex a1 b1 k1 l1
 
 let a2 = [|[| foi 1000 ; foi 1200 |] ; [|foi 10 ; foi 5 |] ; [| foi 2 ; foi 3 |] ; [| foi 1 ; foi 0 |] ; [| foi 0 ; foi 1 |]|]
 let b2 = [| foi 0 ; foi 200 ; foi 60 ; foi 34 ; foi 14 |]
@@ -141,7 +142,7 @@ let b2 = [| foi 0 ; foi 200 ; foi 60 ; foi 34 ; foi 14 |]
 let k2 = 4
 let l2 = 1
 	    
-let x = simplex a2 b2 k2 l2
-
+let x = simplex a2 b2 k2 l2 
 
 let () = print_string "The result is : " ; print_frac x
+		  *)
