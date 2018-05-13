@@ -4,7 +4,7 @@ clean:
 	rm *.cm* *.o lexer.ml parser.ml parser.mli
 
 linlang: parser lexer simplex types printer fourrierMotzkin linlang.ml
-	ocamlopt -o linlang types.ml parser.ml lexer.ml parser.mli simplex.ml printer.ml fourrierMotzkin.ml linlang.ml
+	ocamlopt -o linlang types.ml parserAux.ml parser.ml lexer.ml parser.mli simplex.ml printer.ml fourrierMotzkin.ml linlang.ml
 
 types: types.ml simplex
 	ocamlopt -c types.ml
@@ -30,11 +30,14 @@ lexer: parser lexer.ml
 parser.mli: parser.mly
 	ocamlyacc parser.mly
 
-parser.ml: parser.mli
+parser.ml: parser.mli parserAux
 	ocamlopt -c parser.mli
 
 parser: types parser.ml
 	ocamlopt -c parser.ml
+
+parserAux: parserAux.ml
+	ocamlopt -c parserAux.ml
 
 simplex: simplex.ml
 	ocamlopt -c simplex.ml

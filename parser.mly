@@ -20,12 +20,12 @@ block: /*type pblock = (inv list) * (pinstr list)*/
       |BEG inv END instr block       { $2::(fst $5), $4::(snd $5) }
       ;
 
-ineq: /*type pineq = (Some var * int) list*/
-     expr GEQ ZERO { [$1] }
-    |expr LEQ ZERO { [((fst $1), List.map (fun x -> fst x, -snd x) (snd $1))] }
-    |expr GT ZERO  { [((fst $1), (None, -1)::(snd $1))] }
-    |expr LT ZERO  { [((fst $1), (None, -1)::(List.map (fun x -> fst x, -snd x) (snd $1)))] }
-    |expr EQ ZERO  { [$1;((fst $1),List.map(fun x -> fst x, -snd x)(snd $1))] }
+ineq: /*type pineq = int * (Some var * int) list*/
+     expr GEQ expr { [ParserAux.assemble_inequality $1 $3] }
+    |expr LEQ expr { [ParserAux.assemble_inequality $3 $1] }
+    |expr GT expr  { [ParserAux.assemble_inequality ~strict:true $1 $3] }
+    |expr LT expr  { [ParserAux.assemble_inequality ~strict:true $3 $1] }
+    |expr EQ expr  { [ParserAux.assemble_inequality $1 $3; ParserAux.assemble_inequality $3 $1] }
 
 instr:
       VAR EQUALS expr SEMICOLON                         { Types.PAssignment ($1, $3) }

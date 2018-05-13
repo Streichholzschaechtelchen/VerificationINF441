@@ -25,7 +25,6 @@
     |'>'                                                      {GT}
     |'<'                                                      {LT}
     |"=="                                                     {EQ}
-    |'0'                                                      {ZERO}
     |'='                                                      {EQUALS}
     |"if"                                                     {IF}
     |"else"                                                   {ELSE}
@@ -34,7 +33,7 @@
     |'*'                                                      {TIMES}
     |'+'                                                      {PLUS}
     |'-'                                                      {MINUS}
-    |['-']?['1'-'9']['0'-'9']* as n                           {NUMBER (int_of_string n)}
+    |['-']?['0'-'9']+ as n                                    {NUMBER (int_of_string n)}
     |['a'-'z' 'A'-'Z' '_']['a'-'z' 'A'-'Z' '_' '0'-'9']* as s {VAR(s)}
     |eof                                                      {EOF}
 
