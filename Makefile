@@ -3,10 +3,10 @@ all: linlang
 clean:
 	rm *.cm* lexer.ml parser.ml parser.mli
 
-linlang: parser lexer linlang.ml
-	ocamlopt -o linlang types.ml parser.ml lexer.ml parser.mli linlang.ml
+linlang: parser lexer simplex linlang.ml
+	ocamlopt -o linlang types.ml parser.ml lexer.ml parser.mli simplex.ml linlang.ml
 
-types: types.ml
+types: types.ml simplex
 	ocamlopt -c types.ml
 
 lexer.ml: lexer.mll
@@ -23,3 +23,6 @@ parser.ml: parser.mli
 
 parser: types parser.ml
 	ocamlopt -c parser.ml
+
+simplex: simplex.ml
+	ocamlopt -c simplex.ml

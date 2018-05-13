@@ -1,10 +1,9 @@
 {
   open Parser
-  exception Eof
 }
 
   rule token = parse
-     [' ' '\t' '\n']+                                         {token lexbuf}
+     [' ' '\t' '\n']                                          {token lexbuf}
     |"int"	                                              {INT}
     |';'                                                      {SEMICOLON}
     |','                                                      {COMMA}
@@ -14,8 +13,8 @@
     |')'                                                      {CLBR}
     |">="                                                     {GEQ}
     |"<="                                                     {LEQ}
-    |">"                                                      {GT}
-    |"<"                                                      {LT}
+    |'>'                                                      {GT}
+    |'<'                                                      {LT}
     |"=="                                                     {EQ}
     |'0'                                                      {ZERO}
     |'='                                                      {EQUALS}
@@ -28,6 +27,6 @@
     |'-'                                                      {MINUS}
     |['-']?['1'-'9']['0'-'9']* as n                           {NUMBER (int_of_string n)}
     |['a'-'z' 'A'-'Z' '_']['a'-'z' 'A'-'Z' '_' '0'-'9']* as s {VAR(s)}
-    |eof                                                      {raise Eof}
+    |eof                                                      {EOF}
 
 {}

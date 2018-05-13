@@ -16,6 +16,10 @@ module Fraction =
       |Frac (a, b), Frac(c, d) -> norm (Frac(a * d + c * b, b * d))
       |_-> Infty
 
+    let sub x y = match (x, y) with
+      |Frac (a, b), Frac(c, d) -> norm (Frac(a * d - c * b, b * d))
+      |_-> Infty
+
     let opp x = match x with
       |Frac(a, b) -> norm (Frac(-a, b))
       |_-> Infty
@@ -25,12 +29,25 @@ module Fraction =
       |_ -> Infty
 
     let inv x = match x with
+      |Frac(0, _) -> Infty
       |Frac(a, b) -> norm (Frac(b, a))
       |_ -> Infty
+	      
+    let div x y = prod x (inv y)
 
     let pos x = match x with
       |Frac(a, b) -> a * b >= 0
       | _ -> true
+
+    let geq x y = match x, y with
+      |Infty, _               -> true
+      |Frac(a, b), Frac(c, d) -> a * d >= b * c
+      |_ , _                  -> false
+
+    let eq x y = match x, y with
+      |Infty, Infty           -> true
+      |Infty, _ |_, Infty     -> false
+      |Frac(a, b), Frac(c, d) -> a * d = b * c   
 
     let print_frac x = match x with
       |Frac(a, b) -> print_int a ; print_string " / " ; print_int b
@@ -39,6 +56,13 @@ module Fraction =
 
 open Fraction
 
+let print_array a =
+  let n = Array.length a in
+  for i = 0 to n - 1 do
+    print_frac a.(i); print_string " ; "
+  done;
+  print_string "\n"
+		      
 let print_matrix a = let n = Array.length a in let m = Array.length a.(0) in
   for i = 0 to n - 1 do
     for j = 0 to m - 1 do
@@ -87,8 +111,8 @@ let simplex a b k l =
   print_string "Enter simplex \n";
   let pivot_array = Array.make (k + 1) [||] in
   for i = 0 to k do
-    let idlig = Array.make k (Frac(0, 1)) in
-    if i > 0 then idlig.(i - 1) <- Frac(1, 1);
+    let idlig = Array.make k (foi 0) in
+    if i > 0 then idlig.(i - 1) <- (foi 1);
     pivot_array.(i) <- Array.concat [idlig ; a.(i) ; [|b.(i)|]]
   done;
   print_string "Aux array created and is \n" ; print_matrix pivot_array ;
@@ -116,7 +140,7 @@ let b2 = [| foi 0 ; foi 200 ; foi 60 ; foi 34 ; foi 14 |]
 
 let k2 = 4
 let l2 = 1
-
+	    
 let x = simplex a2 b2 k2 l2
 
 
