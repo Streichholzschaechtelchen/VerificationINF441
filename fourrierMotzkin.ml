@@ -5,7 +5,7 @@ open Simplex
 let array_map2 f a1 a2 =
   Array.of_list (List.map2 f (Array.to_list a1) (Array.to_list a2))
 
-(*Fourrier_Motzkin algorithm*)
+(*Fourrier-Motzkin algorithm*)
 
 let normalize var_count var expr positive =
   let coeff = Fraction.opp (Fraction.inv expr.(var))				  
@@ -27,8 +27,8 @@ let rec split var_count var = function
       -> let a, b, c = split var_count var t in
 	 a, (normalize var_count var expr false)::b, c
 
-let fourrier_motzkin var_count inv var =
-  let a, b, c = split var_count var (List.map snd inv) in
+let fourrier_motzkin_ineq var_count var ineq =
+  let a, b, c = split var_count var ineq in
   let rec aux1 acc h = function
       []   -> acc
     | k::t -> aux1 ((substract k h)::acc) h t
@@ -37,8 +37,8 @@ let fourrier_motzkin var_count inv var =
       []   -> acc
     | h::t -> aux0 (aux1 acc h b) t
   in
-  let s_new_inv = aux0 [] a in
-  if inv = [] then []
-  else let f_new_inv = fst (List.hd inv) in
-       (List.map (fun x -> f_new_inv, x) (c@s_new_inv))
-		(*ajouter tous les élts de inv qui ne font pas intervenir var*)
+  c@(aux0 [] a)
+
+let fourrier_motzkin var_count inv var =
+  let f_inv, s_inv = inv in
+  f_inv, List.map (fourrier_motzkin_ineq var_count var) s_inv

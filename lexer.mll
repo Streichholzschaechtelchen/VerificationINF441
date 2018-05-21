@@ -29,7 +29,9 @@
     |"if"                                                     {IF}
     |"else"                                                   {ELSE}
     |"while"                                                  {WHILE}
-    |"and"                                                    {AND}
+    |"&&"                                                     {AND}
+    |"||"                                                     {OR}
+    |"!"                                                      {NOT}
     |'*'                                                      {TIMES}
     |'+'                                                      {PLUS}
     |'-'                                                      {MINUS}

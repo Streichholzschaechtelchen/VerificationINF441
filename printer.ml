@@ -13,7 +13,7 @@ let rec erase i =
   print_chars ' ' i;
   print_chars '\b' i
 
-let print_expr expr =
+let print_pexpr pexpr =
   let _ = List.map (fun x -> match x with
 			       None, value       -> begin
 						   print_int value;
@@ -25,23 +25,51 @@ let print_expr expr =
 						    print_string var;
 						    print_string " + "
 						  end
-		   ) (snd expr) in
+		   ) pexpr in
   erase 3; ()
 
-let print_inv inv =
-  let _ = List.map (fun x -> print_expr x; print_string " >= 0 and ") inv
-  in if inv <> [] then erase 5; ()
-
-let print_prog prog =
+let rec print_pinv = function
+    Types.Naught (_)     -> ()
+  | Types.Expr (_, ineq) -> begin
+			    print_pexpr ineq;
+			    print_string " >= 0"
+			  end
+  | Types.Not (_, inv)   -> begin
+			    print_string "NOT (";
+			    print_pinv inv;
+			    print_string ")"
+			  end
+  | Types.And (_, invl)  -> begin
+			    print_string "(";
+			    List.iter (fun x -> print_pinv x;
+						print_string ") AND (")
+				      invl;
+			    erase 6
+			  end
+  | Types.Or (_, invl)   -> begin
+			    print_string "(";
+			    List.iter (fun x -> print_pinv x;
+						print_string ") OR (")
+				      invl;
+			    erase 6
+			  end
+									       
+let print_pprog pprog =
   print_string "======\nVariables:\n";
-  let _ = List.map (fun x -> print_string x; print_string " ") (fst prog) in
+  let _ = List.map (fun x -> print_string x; print_string " ") (fst pprog) in
   print_string "\n======\nProgram:\n";
   let rec aux i = function
-      [inv0], []
+      [] , []
+      -> begin
+	print_tabs i;
+	print_string "{  }";
+	print_newline ()
+      end
+     | [inv0], []
       -> begin
 	print_tabs i;
 	print_string "{ ";
-	print_inv inv0;
+	print_pinv inv0;
 	print_string " }";
 	print_newline ()
       end
@@ -49,13 +77,13 @@ let print_prog prog =
       -> begin
 	 print_tabs i;
 	 print_string "{ ";
-	 print_inv inv0;
+	 print_pinv inv0;
 	 print_string " }";
 	 print_newline ();
 	 print_tabs i;
 	 print_string var;
 	 print_string " <- ";
-	 print_expr expr;
+	 print_pexpr expr;
 	 print_newline ();
 	 aux i (t0, t)
        end
@@ -63,12 +91,12 @@ let print_prog prog =
       -> begin
 	 print_tabs i;
 	 print_string "{ ";
-	 print_inv inv0;
+	 print_pinv inv0;
 	 print_string " }";
 	 print_newline ();
 	 print_tabs i;
 	 print_string "If ";
-	 print_inv inv;
+	 print_pinv inv;
 	 print_newline ();
 	 aux (i + 1) block1;
 	 print_tabs i;
@@ -80,12 +108,108 @@ let print_prog prog =
       -> begin
 	 print_tabs i;
 	 print_string "{ ";
-	 print_inv inv0;
+	 print_pinv inv0;
 	 print_string " }";
 	 print_newline ();
 	 print_tabs i;
 	 print_string "While ";
-	 print_inv inv;
+	 print_pinv inv;
+	 print_newline ();
+	 aux (i + 1) block;
+	 aux i (t0, t)
+       end
+    | _, _
+      -> failwith "this case should never occur"
+  in aux 0 (snd pprog);
+     print_string "======\n";
+     ()
+
+let print_expr var_count expr =
+  Array.iteri (fun i x -> begin if (i = var_count) then begin 			         
+				  		     Simplex.Fraction.print_frac x;
+						     print_string " + "
+						   end
+				else begin
+	  			    print_string "x_";
+				    print_int i;
+				    print_string " * ";
+				    Simplex.Fraction.print_frac x;
+				    print_string " + "
+				  end
+			  end
+			    
+	      ) expr;
+    erase 3; ()
+
+let rec print_inv var_count inv =
+  print_string "#";
+  print_int (fst inv);
+  print_string ": ";
+  List.iter (fun conj -> begin List.iter (fun expr -> print_expr var_count expr;
+						      print_string " >= 0 AND ")
+					 conj;
+			       erase 5;
+			       print_string " OR "
+			 end)
+	    (snd inv);
+  erase 4
+									       
+let print_prog (prog : Types.prog) : unit =
+  let var_count = fst prog in
+  print_string "======\nVariables:\n";
+  print_int var_count;
+  print_string "\n======\nProgram:\n";
+  let rec aux (i : int) : Types.block -> unit = function
+      [inv0], []
+      -> begin
+	print_tabs i;
+	print_string "{ ";
+	print_inv var_count inv0;
+	print_string " }";
+	print_newline ()
+      end
+    | inv0::t0, (Types.Assignment (var, expr))::t
+      -> begin
+	 print_tabs i;
+	 print_string "{ ";
+	 print_inv var_count inv0;
+	 print_string " }";
+	 print_newline ();
+	 print_tabs i;
+	 print_string "x_";
+	 print_int var;
+	 print_string " <- ";
+	 print_expr var_count expr;
+	 print_newline ();
+	 aux i (t0, t)
+       end
+    | inv0::t0, (Types.If (inv, block1, block2))::t
+      -> begin
+	 print_tabs i;
+	 print_string "{ ";
+	 print_inv var_count inv0;
+	 print_string " }";
+	 print_newline ();
+	 print_tabs i;
+	 print_string "If ";
+	 print_inv var_count inv;
+	 print_newline ();
+	 aux (i + 1) block1;
+	 print_tabs i;
+	 print_string "Else\n";
+	 aux (i + 1) block2;
+	 aux i (t0, t)
+       end
+    | inv0::t0, (Types.While (inv, block))::t
+      -> begin
+	 print_tabs i;
+	 print_string "{ ";
+	 print_inv var_count inv0;
+	 print_string " }";
+	 print_newline ();
+	 print_tabs i;
+	 print_string "While ";
+	 print_inv var_count inv;
 	 print_newline ();
 	 aux (i + 1) block;
 	 aux i (t0, t)

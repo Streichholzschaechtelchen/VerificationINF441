@@ -1,78 +1,40 @@
 open Simplex
 open FourrierMotzkin
 
-(*Conversion from parsing types to (abstract) analysis types*)
-       
-let abstract_expr var_count var_codes pexpr =
-  let s_expr = Array.make (var_count + 1) (Fraction.foi 0) in
-  List.iter (fun x -> match x with
-			None,   i -> s_expr.(var_count) <- Fraction.sum s_expr.(var_count) (Fraction.foi i)
-		      | Some v, i -> begin
-				     if Hashtbl.mem var_codes v
-				     then s_expr.(Hashtbl.find var_codes v)
-					  <- Fraction.sum s_expr.(Hashtbl.find var_codes v) (Fraction.foi i)
-				     else failwith ("Variable " ^ v ^ " not bound")
-				   end
-	   )
-	   (snd pexpr);
-  (fst pexpr), s_expr
+(*Auxiliary functions for verification tasks*)
 
-let abstract_inv var_count var_codes pinv =
-  List.map (abstract_expr var_count var_codes) pinv
-		
-let rec abstract_instr var_count var_codes = function
-    Types.PAssignment (pvar, pexpr) -> begin
-				      if Hashtbl.mem var_codes pvar
-				      then Types.Assignment (Hashtbl.find var_codes pvar,
-							      abstract_expr var_count var_codes pexpr)
-				      else failwith ("Variable " ^ pvar ^ " not bound")
-				    end
-  | Types.PIf (inv, block1, block2) -> Types.If (abstract_inv var_count var_codes inv,
-					   abstract_block var_count var_codes block1,
-					   abstract_block var_count var_codes block2)
-  | Types.PWhile (inv, block)       -> Types.While (abstract_inv var_count var_codes inv,
-					      abstract_block var_count var_codes block)
-and abstract_block var_count var_codes pblock =
-  let pinvs, pinstrs = pblock in
-  List.map (abstract_inv var_count var_codes) pinvs,
-  List.map (abstract_instr var_count var_codes) pinstrs
+let rec last : 'a list -> 'a option = function
+    []   -> None
+  | [h]  -> Some h
+  | h::t -> last t
 
-let abstract_prog pprog =
-  (*create the hashtable encoding variable indices*)
-  let var_codes = Hashtbl.create 10 in
-  let pvars, pblock = pprog in
-  List.iteri (fun i v -> if Hashtbl.mem var_codes v
-			then failwith ("Duplicate variable " ^ v)
-			else Hashtbl.add var_codes v i)
-	     pvars;
-  let var_count = List.length pvars in
-  (*convert pprog to prog*)
-  var_count, abstract_block var_count var_codes pblock
+let opp_expr : Types.expr -> Types.expr =
+  Array.map Fraction.opp
 
-(*Verify implication inv0 => expr using the simplex algorithm*)
+let one_expr (var : Types.var) : Types.expr -> Types.expr  =
+  Array.mapi (fun i x -> if i = var then (Fraction.foi (-1)) else x)
 
-let opp_expr expr =
-  fst expr, Array.map Fraction.opp (snd expr)
+let neg_ineq (var_count : int) : Types.ineq -> Types.ineq =
+  Array.mapi (fun i x -> if i = var_count
+			 then (Fraction.sum (Fraction.opp x)
+					    (Fraction.foi (-1)))
+			 else (Fraction.opp x))
 
-let neg_ineq var_count ineq =
-  fst ineq, Array.mapi(fun i x -> if i = var_count
-				  then (Fraction.sum (Fraction.opp x)
-						     (Fraction.foi (-1)))
-				  else (Fraction.opp x))
-		      (snd ineq)
-
-let vars_from_z_to_n var_count s_expr =
-  let vars_only = Array.sub s_expr 0 var_count in
+let vars_from_z_to_n (var_count : int) (expr : Types.expr) : Types.expr =
+  let vars_only = Array.sub expr 0 var_count in
   Array.append vars_only (Array.map Fraction.opp vars_only)
+
+(*Verify conj = (expr1 && expr2 && ... && exprn) => expr*)
 			    
-let verify_expr var_count inv0 expr =
-  let f_expr, s_expr = expr in
-  let k = List.length inv0 in
+let verify_expr (var_count : int) (conj : Types.expr list) (expr : Types.expr) : bool =
+  let k = List.length conj in
   let l = 2 * var_count - 1 in
-  let b = Array.of_list (s_expr.(var_count)::(List.map (fun x -> (snd x).(var_count)) inv0)) in
-  let a = Array.of_list ((vars_from_z_to_n var_count s_expr)::(List.map (vars_from_z_to_n var_count) (List.map snd inv0))) in
-  print_string "Verifying expression line ";
-  print_int f_expr;
+  let b = Array.of_list (expr.(var_count)::(List.map (fun x -> x.(var_count)) conj)) in
+  let a = Array.of_list ((vars_from_z_to_n var_count expr)::(List.map (vars_from_z_to_n var_count) conj)) in
+  print_string "Verifying conjunction ";
+  Printer.print_inv var_count (0, [conj]);
+  print_string " => ";
+  Printer.print_inv var_count (0, [[expr]]);
   print_newline ();
   print_string "Sending k:\n"; print_int k; print_newline ();
   print_string "Sending l:\n"; print_int l; print_newline ();
@@ -86,81 +48,282 @@ let verify_expr var_count inv0 expr =
 	     Fraction.print_frac simplex_min;
 	     print_newline ()
        end
-  else begin print_string "Failed verifying expression line ";
-	     print_int f_expr;
-	     print_string ", minimum is ";
+  else begin print_string "Failed, minimum is ";
 	     Fraction.print_frac simplex_min;
 	     print_newline ()
        end;
   result
 
-let verify_inv var_count inv0 inv =
-  List.fold_left (&&) true (List.map (verify_expr var_count inv0) inv)
+(*Verify conj0 => conj*)
+    
+let and_dnf (var_count : int) (inv1 : Types.inv) (inv2 : Types.inv) =
+  let f_inv1, s_inv1 = inv1
+  and f_inv2, s_inv2 = inv2 in
+  let aux acc conj =
+    (List.map (fun x -> x@conj) s_inv1)@acc
+  in match s_inv1, s_inv2, f_inv1 with
+       [], _ , _       -> inv2
+     | _ , [], _       -> inv1
+     | _ , _ , 0       -> (f_inv2, List.fold_left aux [] s_inv2)
+     | _ , _ , _       -> (f_inv1, List.fold_left aux [] s_inv2)        
+
+let neg_dnf (var_count : int) (inv : Types.inv) : Types.inv =
+  fst inv,
+  snd (List.fold_right (and_dnf var_count)
+		       (List.map (fun conj
+				  -> (0,
+				      List.map (fun ineq ->
+						[neg_ineq var_count
+							  ineq])
+					       conj
+				     )
+				 )
+				 (snd inv)
+		       )
+		       (0, [])
+      )
+
+let or_dnf (var_count : int) (inv1 : Types.inv) (inv2 : Types.inv) : Types.inv =
+  let f_inv1, s_inv1 = inv1
+  and f_inv2, s_inv2 = inv2 in
+  (if f_inv1 = 0 then f_inv2 else f_inv1), s_inv1@s_inv2
+    
+let verify_inv (var_count : int) (inv0 : Types.inv) (inv : Types.inv) : bool =
+  let print_implication () =
+    Printer.print_inv var_count inv0;
+    print_string " => ";
+    Printer.print_inv var_count inv;
+  in
+  let f_inv0, s_inv0 = inv0
+  and f_inv, s_inv = inv in
+  print_string "Verifying ";
+  print_implication ();
+  print_newline ();
+  if s_inv = []
+  then true
+  else
+    let result
+      = List.for_all (fun ineq
+		      -> let lhs = snd (List.fold_left (and_dnf var_count)
+						       (f_inv0, [ineq])
+						       (List.map (fun expr -> neg_dnf var_count (0, [expr]))
+								 (List.tl s_inv) )
+				       )
+			 in List.for_all (fun conj -> List.for_all (verify_expr var_count conj)
+								   (List.hd s_inv) )
+					 lhs
+		     )
+		     s_inv0
+    in
+    begin
+      if result then begin
+		    print_string "Successfully verified ";
+		    print_implication ();
+		    print_newline ()
+		  end
+      else begin
+	  print_string "Failed to verify ";
+	  print_implication ();
+	  print_newline ()
+	end;
+      result
+    end	     
+
+(*Simplify invariant*)
+		 
+(*TODO*)
+		    
+(*Conversion from parsing types to (abstract) analysis types*)
+       
+let abstract_expr (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pexpr : Types.pexpr) : Types.expr =
+  let expr = Array.make (var_count + 1) (Fraction.foi 0) in
+  List.iter (fun x -> match x with
+			None,   i -> expr.(var_count) <- Fraction.sum expr.(var_count) (Fraction.foi i)
+		      | Some v, i -> begin
+				     if Hashtbl.mem var_codes v
+				     then expr.(Hashtbl.find var_codes v)
+					  <- Fraction.sum expr.(Hashtbl.find var_codes v) (Fraction.foi i)
+				     else failwith ("Variable " ^ v ^ " not bound")
+				   end
+	    )
+	    pexpr;
+  expr
+    
+let rec abstract_inv (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtbl.t) : Types.pinv -> Types.inv  = function
+    Types.Naught (i)     -> i, []
+  | Types.Expr (i, pexpr)-> i, [[abstract_expr var_count var_codes pexpr]]
+  | Types.Not  (i, pinv) -> i, let inv = abstract_inv var_count var_codes pinv
+			       in snd (neg_dnf var_count inv)
+  | Types.And (i, pinvl) -> i, let invl = List.map (abstract_inv var_count var_codes) pinvl
+			       in snd (List.fold_left (and_dnf var_count)
+						      (List.hd invl) (List.tl invl))
+  | Types.Or (i, pinvl)  -> i, let invl = List.map (abstract_inv var_count var_codes) pinvl
+			       in snd (List.fold_right (or_dnf var_count)
+						       (List.tl invl) (List.hd invl))
+
+let abstract_assignment (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pvar : Types.pvar) (pexpr : Types.pexpr) : Types.instr =
+   if Hashtbl.mem var_codes pvar
+   then Types.Assignment (Hashtbl.find var_codes pvar,
+			  abstract_expr var_count var_codes pexpr)
+   else failwith ("Variable " ^ pvar ^ " not bound")
+
+let rec abstract_if (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtbl.t)
+                    (inv : Types.inv) (pblock1 : Types.pblock) (pblock2 : Types.pblock) (invp1 : Types.inv) (invp2 : Types.inv) : Types.instr =
+   Types.If (inv,
+	     abstract_block var_count var_codes pblock1 invp1,
+	     abstract_block var_count var_codes pblock2 invp2)
+
+and abstract_while (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtbl.t) (inv : Types.inv) (pblock : Types.pblock) : Types.instr =
+  Types.While (inv,
+	       abstract_block var_count var_codes pblock (0, []))
+
+and abstract_block (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pblock : Types.pblock) invp : Types.block =
+  let invs, instrs = pblock in
+  let map_abstract_invs = List.map (abstract_inv var_count var_codes) in
+  let new_invs_ = match map_abstract_invs invs with
+      []         -> []
+    | (i, [])::t -> (i, snd invp)::t
+    | l          -> l
+  in
+  let new_invs = if List.length new_invs_ <> (List.length instrs) + 1
+		 then new_invs_@[(0, [])]
+		 else new_invs_
+  in 
+  let rec aux new_invs instrs = match new_invs, instrs with
+      _, []                                                -> new_invs, []
+    | pre::post::tinv, (Types.PAssignment(pvar, pexpr))::t -> begin
+							     let new_assignment = abstract_assignment var_count var_codes pvar pexpr in
+							     let new_post =
+							       if (snd post) = [] then begin
+										      match new_assignment with
+											Types.Assignment(var, expr)
+											-> let oned_expr = one_expr var expr in
+											   and_dnf var_count (fst post, snd pre)
+												   (fst post, [[opp_expr oned_expr; oned_expr]])
+										      | _
+											-> failwith "This case should never occur"
+										    end
+							       else post
+							   in
+							   let new_tinv, new_t = aux (new_post::tinv) t
+							   in pre::new_tinv, new_assignment::new_t
+							   end
+    | pre::post::tinv, (Types.PIf(pinv, pblock1, pblock2))::t -> begin
+								 let inv = abstract_inv var_count var_codes pinv in
+								 let if_first_inv_prop = and_dnf var_count pre inv
+								 and else_first_inv_prop = and_dnf var_count pre (neg_dnf var_count inv) in
+								 let new_if = abstract_if var_count var_codes inv pblock1 pblock2
+											  if_first_inv_prop else_first_inv_prop in
+								 let if_last_inv, else_last_inv =
+								   match new_if with
+								     Types.If(_, b1, b2) -> begin
+											   (match last (fst b1) with
+											      None   -> (0, [])
+											    | Some i -> i),
+											   (match last (fst b2) with
+											      None   -> (0, [])
+											    | Some i -> i)
+											 end
+								      | _                   -> failwith "This case should never occur"
+								 in				 
+								 let new_post = if snd post = []
+										then or_dnf var_count if_last_inv else_last_inv
+										else post
+								 in
+								 let new_tinv, new_t = aux (new_post::tinv) t
+								 in pre::new_tinv, new_if::new_t
+					       		       end
+    | pre::post::tinv, (Types.PWhile(pinv, pblock))::t       -> begin (*pas d'autocomplétion de hd inv*)
+							      let inv = abstract_inv var_count var_codes pinv in
+							      let new_while = abstract_while var_count var_codes inv pblock in
+							      let while_last_inv =
+								 match new_while with
+								   Types.While(_, b) -> begin match last (fst b) with
+												None   -> (0, [])
+											      | Some i -> i
+											end
+								 | _                 -> failwith "This case should never occur"
+							       in				 
+							       let new_post = if snd post = []
+									      then or_dnf var_count (and_dnf var_count
+													     while_last_inv
+													     (neg_dnf var_count inv))
+											  (and_dnf var_count
+												   pre
+												   (neg_dnf var_count inv))
+									      else post
+							       in
+							       let new_tinv, new_t = aux (new_post::tinv) t
+							       in pre::new_tinv, new_while::new_t
+					       		    end
+    | _                                                      -> failwith "This case should never occur either"
+  in aux new_invs instrs
+
+let abstract_prog (pprog : Types.pprog) : Types.prog =
+  (*create the hashtable encoding variable indices*)
+  let var_codes = Hashtbl.create 10 in
+  let pvars, pblock = pprog in
+  List.iteri (fun i v -> if Hashtbl.mem var_codes v
+			then failwith ("Duplicate variable " ^ v)
+			else Hashtbl.add var_codes v i)
+	     pvars;
+  let var_count = List.length pvars in
+  (*convert pprog to prog*)
+  var_count, abstract_block var_count var_codes pblock (0, [])
 
 (*Verify assignment : auxiliary functions*)
 
-let update_expr var_count var expr0 expr =
-  let f_expr, s_expr = expr in
-  let _, s_expr0 = expr0 in
-  let coeff = Fraction.div s_expr.(var) s_expr0.(var) in
-  f_expr, Array.mapi (fun j x -> match j with
-				   i when i = var -> coeff
-				 | i              -> Fraction.sum x (Fraction.opp (Fraction.prod coeff s_expr0.(i)))
-		     ) s_expr
+let update_expr (var_count : int) (var : Types.var) (expr0 : Types.expr) (expr : Types.expr) : Types.expr =
+  let coeff = Fraction.div expr.(var) expr0.(var) in
+  Array.mapi (fun j x -> match j with
+			   i when i = var -> coeff
+			 | i              -> Fraction.sum x (Fraction.opp (Fraction.prod coeff expr0.(i)))
+	     ) expr
 
-let update_inv var_count var expr0 inv =
-  List.map (update_expr var_count var expr0) inv
-
-let rec last = function
-    []   -> None
-  | [h]  -> Some h
-  | h::t -> last t
+let update_inv (var_count : int) (var : Types.var) (expr0 : Types.expr) (inv : Types.inv) : Types.inv =
+  fst inv, List.map (List.map (update_expr var_count var expr0)) (snd inv)
 
 (*Verify assignment*)
 
-let verify_assignment var_count pre var expr post =
-  let f_expr, s_expr = expr in
-  if not (Fraction.eq s_expr.(var) (Fraction.foi 0))
+let verify_assignment (var_count : int) (pre : Types.inv) (var : Types.var) (expr : Types.expr) (post : Types.inv) : bool =
+  if not (Fraction.eq expr.(var) (Fraction.foi 0))
   then (*cas d'une affectation inversible*)
     verify_inv var_count (update_inv var_count var expr pre) post
   else (*cas d'une affectation non inversible*)
-    let oned_expr = f_expr, Array.mapi (fun i x -> if i = var then (Fraction.foi (-1)) else x) s_expr in
-    verify_inv var_count ((oned_expr)::(opp_expr oned_expr)::(fourrier_motzkin var_count pre var)) post
+    let oned_expr = one_expr var expr in
+    verify_inv var_count (and_dnf var_count (0, [[oned_expr; opp_expr oned_expr]]) (fourrier_motzkin var_count pre var)) post
 	       
 (*Verify if statement*)
 
-let rec verify_and_not var_count pre inv post =
-  List.for_all (fun x -> verify_inv var_count ((neg_ineq var_count x)::pre) post) inv
-
-let rec verify_if var_count pre inv block1 block2 post =
+let rec verify_if (var_count : int) (pre : Types.inv) (inv : Types.inv) (block1 : Types.block) (block2 : Types.block) (post : Types.inv) : bool =
   (match last (fst block1) with
      Some if_end_inv -> let if_beg_inv = List.hd (fst block1) in
-			(verify_inv var_count (inv@pre) if_beg_inv)
+			(verify_inv var_count (and_dnf var_count inv pre) if_beg_inv)
 			&& (verify_inv var_count if_end_inv post)
-   | None            -> verify_inv var_count (inv@pre) post)
+   | None            -> verify_inv var_count (and_dnf var_count inv pre) post)
   && (match last (fst block2) with
 	Some else_end_inv -> let else_beg_inv = List.hd (fst block2) in
-			     (verify_and_not var_count pre inv else_beg_inv)
+			     (verify_inv var_count (and_dnf var_count pre (neg_dnf var_count inv)) else_beg_inv)
 			     && (verify_inv var_count else_end_inv post)
-      | None              -> verify_and_not var_count pre inv post)
+      | None              -> verify_inv var_count (and_dnf var_count pre (neg_dnf var_count inv)) post)
   && (verify_block var_count block1)
   && (verify_block var_count block2)
 
 (*Verify while statement*)
-       
-and verify_while var_count pre inv block post =
+     
+and verify_while (var_count : int) (pre : Types.inv) (inv : Types.inv) (block : Types.block) (post : Types.inv) : bool =
   (match last (fst block) with
      Some while_end_inv -> let while_beg_inv = List.hd (fst block) in
-			  (verify_inv var_count (inv@pre) while_beg_inv)
-			  && (verify_inv var_count (inv@while_end_inv) while_beg_inv)
-			  && (verify_and_not var_count while_end_inv inv post)
+			  (verify_inv var_count (and_dnf var_count inv pre) while_beg_inv)
+			  && (verify_inv var_count (and_dnf var_count inv while_end_inv) while_beg_inv)
+			  && (verify_inv var_count (and_dnf var_count while_end_inv (neg_dnf var_count inv)) post)
    | None               -> true)
-  && (verify_and_not var_count pre inv post)
+  && (verify_inv var_count (and_dnf var_count pre (neg_dnf var_count inv)) post)
   && (verify_block var_count block)
 
 (*Verify whole block*)
 							   
-and verify_block var_count block = match block with
+and verify_block (var_count : int) (block : Types.block) : bool = match block with
     _, []                                                -> true
   | pre::post::tinv, (Types.Assignment (var, expr))::t   -> (verify_assignment var_count pre var expr post)
 							    && (verify_block var_count ((post::tinv), t))
@@ -175,9 +338,13 @@ and verify_block var_count block = match block with
 let _ =
   let lexbuf = Lexing.from_channel stdin in
   let pprog = Parser.progc Lexer.token lexbuf in
-  Printer.print_prog pprog; flush stdout;
+  Printer.print_pprog pprog; flush stdout;
+  print_string "Completing invariants...\n";
   let var_count, proc = abstract_prog pprog in
+  Printer.print_prog (var_count, proc); flush stdout;
   if (verify_block var_count proc)
   then print_string "Verified!\n"
   else print_string "Could not be verified.\n"; 
   ()
+
+    
