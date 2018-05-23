@@ -130,8 +130,31 @@ let verify_inv (var_count : int) (inv0 : Types.inv) (inv : Types.inv) : bool =
     end	     
 
 (*Simplify invariant*)
-		 
-(*TODO*)
+
+let rec simplify_conj (var_count : int) (conj : Types.expr list) : Types.expr list =
+  match conj with
+    []      -> []
+  | [expr]  -> [expr]
+  | expr::t -> begin let st = simplify_conj var_count t in
+		     if verify_expr var_count st expr
+		     then st
+		     else expr::st
+	       end
+      
+let simplify_inv (var_count : int) (inv : Types.inv) : Types.inv =
+  let finv = fst inv in
+  let sinv1 = List.map (simplify_conj var_count) (snd inv) in
+  let rec aux l =
+    match l with
+      []      -> []
+    | [conj]  -> [conj]
+    | conj::t -> begin let st = aux t in
+		       if List.for_all (fun x -> verify_inv var_count (finv, [x]) (finv, [conj]))
+				       st
+		       then st
+		       else conj::st
+		 end
+  in fst inv, aux sinv1
 		    
 (*Conversion from parsing types to (abstract) analysis types*)
        
@@ -198,8 +221,12 @@ and abstract_block (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtb
 										      match new_assignment with
 											Types.Assignment(var, expr)
 											-> let oned_expr = one_expr var expr in
-											   and_dnf var_count (fst post, snd pre)
-												   (fst post, [[opp_expr oned_expr; oned_expr]])
+											   let new_post_ = and_dnf var_count
+														   (fst post, snd pre)
+														   (fst post,
+														    [[opp_expr oned_expr;
+														      oned_expr]])
+											   in simplify_inv var_count new_post_
 										      | _
 											-> failwith "This case should never occur"
 										    end
@@ -227,7 +254,10 @@ and abstract_block (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtb
 								      | _                   -> failwith "This case should never occur"
 								 in				 
 								 let new_post = if snd post = []
-										then or_dnf var_count if_last_inv else_last_inv
+										then let new_post_ = or_dnf var_count
+													    if_last_inv
+													    else_last_inv
+										     in simplify_inv var_count new_post_
 										else post
 								 in
 								 let new_tinv, new_t = aux (new_post::tinv) t
@@ -245,12 +275,14 @@ and abstract_block (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtb
 								 | _                 -> failwith "This case should never occur"
 							       in				 
 							       let new_post = if snd post = []
-									      then or_dnf var_count (and_dnf var_count
-													     while_last_inv
-													     (neg_dnf var_count inv))
-											  (and_dnf var_count
-												   pre
-												   (neg_dnf var_count inv))
+									      then let new_post_ =
+										     or_dnf var_count (and_dnf var_count
+													       while_last_inv
+													       (neg_dnf var_count inv))
+											    (and_dnf var_count
+												     pre
+												     (neg_dnf var_count inv))
+										   in simplify_inv var_count new_post_
 									      else post
 							       in
 							       let new_tinv, new_t = aux (new_post::tinv) t
