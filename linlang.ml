@@ -184,6 +184,52 @@ let rec abstract_inv (var_count : int) (var_codes : (Types.pvar, Types.var) Hash
 			       in snd (List.fold_right (or_dnf var_count)
 						       (List.tl invl) (List.hd invl))
 
+let compute_inv_assignment var_count new_assignment pre post =
+  if (snd post) == []
+  then begin 
+      match new_assignment with
+	Types.Assignment(var, expr) -> let oned_expr = one_expr var expr in
+				       let new_post_ = and_dnf var_count
+							       (fst post, snd pre)
+							       (fst post, [[opp_expr oned_expr; oned_expr]])
+				       in simplify_inv var_count new_post_
+      | _                           -> failwith "This case should never occur"
+    end
+  else post
+						
+let compute_inv_if var_count if_last_inv else_last_inv post =
+  if (snd post) == []
+  then 
+    let new_post_ = or_dnf var_count if_last_inv else_last_inv
+    in simplify_inv var_count new_post_
+  else post
+	 
+let compute_inv_while var_count pre while_last_inv inv post =
+  if (snd post) == []
+  then
+    let new_post_ = or_dnf var_count (and_dnf var_count while_last_inv (neg_dnf var_count inv))
+			   (and_dnf var_count pre (neg_dnf var_count inv))
+    in simplify_inv var_count new_post_
+  else post
+
+let last_inv_of_while = function
+    Types.While(_, b) -> begin match last (fst b) with
+				 None   -> (0, [])
+			       | Some i -> i
+			 end
+  | _                 -> failwith "This case should never occur"
+
+let last_invs_of_if = function
+    Types.If(_, b1, b2) -> begin
+			  (match last (fst b1) with
+			     None   -> (0, [])
+			   | Some i -> i),
+			  (match last (fst b2) with
+			     None   -> (0, [])
+			   | Some i -> i)
+			end
+  | _                   -> failwith "This case should never occur"
+		  
 let abstract_assignment (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pvar : Types.pvar) (pexpr : Types.pexpr) : Types.instr =
    if Hashtbl.mem var_codes pvar
    then Types.Assignment (Hashtbl.find var_codes pvar,
@@ -215,78 +261,29 @@ and abstract_block (var_count : int) (var_codes : (Types.pvar, Types.var) Hashtb
   let rec aux new_invs instrs = match new_invs, instrs with
       _, []                                                -> new_invs, []
     | pre::post::tinv, (Types.PAssignment(pvar, pexpr))::t -> begin
-							     let new_assignment = abstract_assignment var_count var_codes pvar pexpr in
-							     let new_post =
-							       if (snd post) = [] then begin
-										      match new_assignment with
-											Types.Assignment(var, expr)
-											-> let oned_expr = one_expr var expr in
-											   let new_post_ = and_dnf var_count
-														   (fst post, snd pre)
-														   (fst post,
-														    [[opp_expr oned_expr;
-														      oned_expr]])
-											   in simplify_inv var_count new_post_
-										      | _
-											-> failwith "This case should never occur"
-										    end
-							       else post
-							   in
-							   let new_tinv, new_t = aux (new_post::tinv) t
-							   in pre::new_tinv, new_assignment::new_t
-							   end
+							      let new_assignment = abstract_assignment var_count var_codes pvar pexpr in
+							      let new_post = compute_inv_assignment var_count new_assignment pre post in
+							      let new_tinv, new_t = aux (new_post::tinv) t
+							      in pre::new_tinv, new_assignment::new_t
+							    end
     | pre::post::tinv, (Types.PIf(pinv, pblock1, pblock2))::t -> begin
 								 let inv = abstract_inv var_count var_codes pinv in
 								 let if_first_inv_prop = and_dnf var_count pre inv
 								 and else_first_inv_prop = and_dnf var_count pre (neg_dnf var_count inv) in
 								 let new_if = abstract_if var_count var_codes inv pblock1 pblock2
 											  if_first_inv_prop else_first_inv_prop in
-								 let if_last_inv, else_last_inv =
-								   match new_if with
-								     Types.If(_, b1, b2) -> begin
-											   (match last (fst b1) with
-											      None   -> (0, [])
-											    | Some i -> i),
-											   (match last (fst b2) with
-											      None   -> (0, [])
-											    | Some i -> i)
-											 end
-								      | _                   -> failwith "This case should never occur"
-								 in				 
-								 let new_post = if snd post = []
-										then let new_post_ = or_dnf var_count
-													    if_last_inv
-													    else_last_inv
-										     in simplify_inv var_count new_post_
-										else post
-								 in
+								 let if_last_inv, else_last_inv = last_invs_of_if new_if in
+								 let new_post = compute_inv_if var_count if_last_inv else_last_inv post in
 								 let new_tinv, new_t = aux (new_post::tinv) t
 								 in pre::new_tinv, new_if::new_t
 					       		       end
     | pre::post::tinv, (Types.PWhile(pinv, pblock))::t       -> begin (*pas d'autocomplétion de hd inv*)
 							      let inv = abstract_inv var_count var_codes pinv in
 							      let new_while = abstract_while var_count var_codes inv pblock in
-							      let while_last_inv =
-								 match new_while with
-								   Types.While(_, b) -> begin match last (fst b) with
-												None   -> (0, [])
-											      | Some i -> i
-											end
-								 | _                 -> failwith "This case should never occur"
-							       in				 
-							       let new_post = if snd post = []
-									      then let new_post_ =
-										     or_dnf var_count (and_dnf var_count
-													       while_last_inv
-													       (neg_dnf var_count inv))
-											    (and_dnf var_count
-												     pre
-												     (neg_dnf var_count inv))
-										   in simplify_inv var_count new_post_
-									      else post
-							       in
-							       let new_tinv, new_t = aux (new_post::tinv) t
-							       in pre::new_tinv, new_while::new_t
+							      let while_last_inv = last_inv_of_while new_while in
+							      let new_post = compute_inv_while var_count pre while_last_inv inv post in
+							      let new_tinv, new_t = aux (new_post::tinv) t
+							      in pre::new_tinv, new_while::new_t
 					       		    end
     | _                                                      -> failwith "This case should never occur either"
   in aux new_invs instrs
