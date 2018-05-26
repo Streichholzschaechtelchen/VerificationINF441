@@ -40,6 +40,7 @@ module Fraction =
       | _ -> true
 
     let geq x y = match x, y with
+      |Void, _                -> true
       |_, Infty               -> true
       |Infty, _               -> false
       |Frac(a, b), Frac(c, d) -> a * d >= b * c
@@ -211,7 +212,25 @@ let simplex a b k l =
 
 (***** Test ****)
 
-(* let a = [| [| foi 1 ; foi 0 ; foi 0 ; foi (-1) ; foi 0 ; foi 0 |];
+(*let a = [| [| foi (-1) ; foi 0 ; foi 0 ; foi 1 ; foi 0 ; foi 0 |];
+[|foi (-1)  ; foi 1  ; foi 0  ; foi 1  ; foi (-1)  ; foi 0  |];
+[|foi 1  ; foi (-1)  ; foi 0  ; foi (-1)  ; foi 1  ; foi 0  |];
+[|foi 0  ; foi 0  ; foi 1  ; foi 0  ; foi 0  ; foi (-1)  |];
+[|foi 0  ; foi 0  ; foi (-1)  ; foi 0  ; foi 0  ; foi 1  |];
+[|foi 1  ; foi 0  ; foi 0  ; foi (-1)  ; foi 0  ; foi 0  |];
+[|foi (-1)  ; foi 0  ; foi 0  ; foi 1  ; foi 0  ; foi 0  |];
+[|foi 1  ; foi 0  ; foi 0  ; foi (-1)  ; foi 0  ; foi 0 |];|]
+
+let b = [|foi (-1)  ; foi 0  ; foi 0  ; foi 0  ; foi 0  ; foi (-1)  ; foi 0  ; foi (-1)|]
+
+let k = 7
+let l = 5
+
+let x = simplex a b k l
+
+let () = print_string "The result is : " ; Fraction.print_frac x
+
+let a = [| [| foi 1 ; foi 0 ; foi 0 ; foi (-1) ; foi 0 ; foi 0 |];
 [|foi (-1)  ; foi 1  ; foi 0  ; foi 1  ; foi (-1)  ; foi 0  |];
 [|foi 1  ; foi (-1)  ; foi 0  ; foi (-1)  ; foi 1  ; foi 0  |];
 [|foi 0  ; foi 0  ; foi 1  ; foi 0  ; foi 0  ; foi (-1)  |];
@@ -227,7 +246,7 @@ let l = 5
 
 let x = simplex a b k l
 
-let () = print_string "The result is : " ; print_frac x
+let () = print_string "The result is : " ; Fraction.print_frac x
 
 let a1 = [|[| foi 2 ; foi 3 ; foi 4 |] ; [|foi 3 ; foi 2 ; foi 1 |] ; [|foi 2 ; foi 5 ; foi 3 |]|]
 let b1 = [| foi 0 ; foi 10 ; foi 15 |]
@@ -236,7 +255,7 @@ let l1 = 2
 
 let x = simplex a1 b1 k1 l1
 
-let () = print_string "The result is : " ; print_frac x
+let () = print_string "The result is : " ; Fraction.print_frac x
 
 let a2 = [|[| foi 1000 ; foi 1200 |] ; [|foi 10 ; foi 5 |] ; [| foi 2 ; foi 3 |] ; [| foi 1 ; foi 0 |] ; [| foi 0 ; foi 1 |]|]
 let b2 = [| foi 0 ; foi 200 ; foi 60 ; foi 34 ; foi 14 |]
@@ -246,4 +265,4 @@ let l2 = 1
 
 let x = simplex a2 b2 k2 l2
 
-let () = print_string "The result is : " ; print_frac x *)
+let () = print_string "The result is : " ; Fraction.print_frac x*)

@@ -22,7 +22,20 @@ let neg_ineq (var_count : int) : Types.ineq -> Types.ineq =
 
 let vars_from_z_to_n (var_count : int) (expr : Types.expr) : Types.expr =
   let vars_only = Array.sub expr 0 var_count in
-  Array.append vars_only (Array.map Fraction.opp vars_only)
+  Array.append vars_only (Array.map Fraction.opp vars_only)	       
+
+(*Verify assignment : auxiliary functions*)
+
+let update_expr (var_count : int) (var : Types.var) (expr0 : Types.expr) (expr : Types.expr) : Types.expr =
+  let coeff = Fraction.div expr.(var) expr0.(var) in
+  Array.mapi (fun j x -> match j with
+			   i when i = var -> coeff
+			 | i              -> Fraction.sum x (Fraction.opp (Fraction.prod coeff expr0.(i)))
+	     ) expr
+
+let update_inv (var_count : int) (var : Types.var) (expr0 : Types.expr) (inv : Types.inv) : Types.inv =
+  fst inv, List.map (List.map (update_expr var_count var expr0)) (snd inv)
+
 
 (*Verify conj = (expr1 && expr2 && ... && exprn) => expr*)
 			    
@@ -149,8 +162,7 @@ let simplify_inv (var_count : int) (inv : Types.inv) : Types.inv =
       []      -> []
     | [conj]  -> [conj]
     | conj::t -> begin let st = aux t in
-		       if List.for_all (fun x -> verify_inv var_count (finv, [x]) (finv, [conj]))
-				       st
+		       if verify_inv var_count (finv, [conj]) (finv, st) 
 		       then st
 		       else conj::st
 		 end
@@ -188,13 +200,15 @@ let compute_inv_assignment var_count new_assignment pre post =
   if (snd post) == []
   then begin 
       match new_assignment with
-	Types.Assignment(var, expr) -> let oned_expr = one_expr var expr in
-				       let new_post_ = and_dnf var_count
-							       (fst post, snd pre)
-							       (fst post, [[opp_expr oned_expr; oned_expr]])
-				       in simplify_inv var_count new_post_
-      | _                           -> failwith "This case should never occur"
-    end
+	Types.Assignment(var, expr) -> begin
+				      if not (Fraction.eq expr.(var) (Fraction.foi 0))
+				      then update_inv var_count var expr pre
+				      else let oned_expr = one_expr var expr in
+					   (and_dnf var_count (fst pre, [[oned_expr; opp_expr oned_expr]])
+						    (fourrier_motzkin var_count pre var))
+				    end
+	| _                           -> failwith "This case should never occur"
+	end
   else post
 						
 let compute_inv_if var_count if_last_inv else_last_inv post =
@@ -207,8 +221,7 @@ let compute_inv_if var_count if_last_inv else_last_inv post =
 let compute_inv_while var_count pre while_last_inv inv post =
   if (snd post) == []
   then
-    let new_post_ = or_dnf var_count (and_dnf var_count while_last_inv (neg_dnf var_count inv))
-			   (and_dnf var_count pre (neg_dnf var_count inv))
+    let new_post_ = and_dnf var_count (neg_dnf var_count inv) (or_dnf var_count while_last_inv pre)
     in simplify_inv var_count new_post_
   else post
 
@@ -299,19 +312,7 @@ let abstract_prog (pprog : Types.pprog) : Types.prog =
   let var_count = List.length pvars in
   (*convert pprog to prog*)
   var_count, abstract_block var_count var_codes pblock (0, [])
-
-(*Verify assignment : auxiliary functions*)
-
-let update_expr (var_count : int) (var : Types.var) (expr0 : Types.expr) (expr : Types.expr) : Types.expr =
-  let coeff = Fraction.div expr.(var) expr0.(var) in
-  Array.mapi (fun j x -> match j with
-			   i when i = var -> coeff
-			 | i              -> Fraction.sum x (Fraction.opp (Fraction.prod coeff expr0.(i)))
-	     ) expr
-
-let update_inv (var_count : int) (var : Types.var) (expr0 : Types.expr) (inv : Types.inv) : Types.inv =
-  fst inv, List.map (List.map (update_expr var_count var expr0)) (snd inv)
-
+			    
 (*Verify assignment*)
 
 let verify_assignment (var_count : int) (pre : Types.inv) (var : Types.var) (expr : Types.expr) (post : Types.inv) : bool =
