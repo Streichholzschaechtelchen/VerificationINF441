@@ -51,7 +51,7 @@ inv:
 		      | i::j::t -> ParserAux.assemble_and lnum (Types.Expr (lnum, i)) (Types.Expr (lnum, j))
 		      | _       -> failwith "This should never occur"
 	          }
-   |OPBR inv OPBR { $2 }
+   |OPBR inv CLBR { $2 }
    |NOT inv       { Types.Not ((Parsing.rhs_start_pos 1).Lexing.pos_lnum, $2) }
    |inv AND inv   { ParserAux.assemble_and (Parsing.rhs_start_pos 1).Lexing.pos_lnum $1 $3 }
    |inv OR inv    { ParserAux.assemble_or (Parsing.rhs_start_pos 1).Lexing.pos_lnum $1 $3 }
