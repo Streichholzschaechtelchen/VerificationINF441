@@ -1,0 +1,39 @@
+\documentclass[a4paper]{article}
+
+%% Language and font encodings
+\usepackage[french]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{subcaption}
+
+%% pour le code
+\usepackage{listings}
+\usepackage{color}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath,amsthm,amsfonts,amssymb, stmaryrd}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{xcolor}
+
+
+\title{Projet d'informatique : Inégalités linéaires et vérifications de programmes}
+\author{Gustave Billon, François Hublet}
+
+\begin{document}
+\maketitle
+
+\section{Organisation du projet}
+
+Le projet comporte cinq parties principales : le corps du programme se trouve dans le fichier linlang.ml, qui s'appuie sur un lexer (lexer.mll), un parser (parser.mly), l'algorithme du simplexe (simplex.ml) et l'algorithme de Fourier-Motzkin
+
+\section{Structures de données}
+
+On a choisi de représenter les combinaisons linéaires à l'aide de fractions, définies dans le module Fraction, afin de mener les calculs de façon purement algébrique. Les inégalités étant beaucoup sujettes à des manipulations d'algèbre linéaire, elles sont représentées dans des Fraction.frac array, et l'algorithme du simplexe est codé de manière impérative, ce qui se prête mieux aux calculs matriciels.
+
+\end{document}
