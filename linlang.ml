@@ -9,7 +9,7 @@ let verifier (var_count : int) =
 
     method one_expr (var : Types.var) : Types.expr -> Types.expr  =
       Array.mapi (fun i x -> if i = var then (Fraction.foi (-1)) else x)
-		 
+
     method neg_ineq : Types.ineq -> Types.ineq =
       Array.mapi (fun i x -> if i = var_count
 			     then (Fraction.sum (Fraction.opp x)
@@ -25,8 +25,8 @@ let verifier (var_count : int) =
 	   [], _ , _       -> inv2
 	 | _ , [], _       -> inv1
 	 | _ , _ , 0       -> (f_inv2, List.fold_left aux [] s_inv2)
-	 | _ , _ , _       -> (f_inv1, List.fold_left aux [] s_inv2)        
-				
+	 | _ , _ , _       -> (f_inv1, List.fold_left aux [] s_inv2)
+
     method neg_dnf (inv : Types.inv) : Types.inv =
       fst inv,
       snd (List.fold_right s#and_dnf
@@ -41,7 +41,7 @@ let verifier (var_count : int) =
 			   )
 			   (0, [])
 	  )
-	  
+
     method or_dnf (inv1 : Types.inv) (inv2 : Types.inv) : Types.inv =
       let f_inv1, s_inv1 = inv1
       and f_inv2, s_inv2 = inv2 in
@@ -49,8 +49,8 @@ let verifier (var_count : int) =
 
     method vars_from_z_to_n (expr : Types.expr) : Types.expr =
       let vars_only = Array.sub expr 0 var_count in
-      Array.append vars_only (Array.map Fraction.opp vars_only)	       
-		   
+      Array.append vars_only (Array.map Fraction.opp vars_only)
+
     (*Auxiliary functions for verification tasks*)
 
     method last : 'a list -> 'a option = function
@@ -72,7 +72,7 @@ let verifier (var_count : int) =
 
 
     (*Verify conj = (expr1 && expr2 && ... && exprn) => expr*)
-			
+
     method verify_expr (conj : Types.expr list) (expr : Types.expr) : bool =
       let k = List.length conj in
       let l = 2 * var_count - 1 in
@@ -85,8 +85,8 @@ let verifier (var_count : int) =
       print_newline ();
       print_string "Sending k:\n"; print_int k; print_newline ();
       print_string "Sending l:\n"; print_int l; print_newline ();
-      print_string "Sending a:\n"; print_matrix a;
-      print_string "Sending b:\n"; print_array b;
+      print_string "Sending a:\n"; LinearOperations.print_matrix a;
+      print_string "Sending b:\n"; LinearOperations.print_array b;
       print_newline ();
       let simplex_min = simplex a b k l in
       let result = Fraction.geq simplex_min (Fraction.foi 0) in
@@ -102,7 +102,7 @@ let verifier (var_count : int) =
       result
 
     (*Verify conj0 => conj*)
-	
+
     method verify_inv (inv0 : Types.inv) (inv : Types.inv) : bool =
       let print_implication () =
 	Printer.print_inv var_count inv0;
@@ -142,7 +142,7 @@ let verifier (var_count : int) =
 	      print_newline ()
 	    end;
 	  result
-	end	     
+	end
 
     (*Simplify invariant*)
 
@@ -155,7 +155,7 @@ let verifier (var_count : int) =
 			 then st
 			 else expr::st
 		   end
-		     
+
     method simplify_inv (inv : Types.inv) : Types.inv =
       let finv = fst inv in
       let sinv1 = List.map s#simplify_conj (snd inv) in
@@ -164,14 +164,14 @@ let verifier (var_count : int) =
 	  []      -> []
 	| [conj]  -> [conj]
 	| conj::t -> begin let st = aux t in
-			   if s#verify_inv (finv, [conj]) (finv, st) 
+			   if s#verify_inv (finv, [conj]) (finv, st)
 			   then st
 			   else conj::st
 		     end
       in fst inv, aux sinv1
-		      
+
     (*Conversion from parsing types to (abstract) analysis types*)
-		      
+
     method abstract_expr (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pexpr : Types.pexpr) : Types.expr =
       let expr = Array.make (var_count + 1) (Fraction.foi 0) in
       List.iter (fun x -> match x with
@@ -185,7 +185,7 @@ let verifier (var_count : int) =
 		)
 		pexpr;
       expr
-	
+
     method abstract_inv (var_codes : (Types.pvar, Types.var) Hashtbl.t) : Types.pinv -> Types.inv  = function
 	Types.Naught (i)     -> i, []
       | Types.Expr (i, pexpr)-> i, [[s#abstract_expr var_codes pexpr]]
@@ -198,7 +198,7 @@ let verifier (var_count : int) =
 
     method compute_inv_assignment (new_assignment : Types.instr) (pre : Types.inv) (post : Types.inv) : Types.inv =
       if (snd post) == []
-      then begin 
+      then begin
 	  match new_assignment with
 	    Types.Assignment(var, expr) -> begin
 					  if not (Fraction.eq expr.(var) (Fraction.foi 0))
@@ -210,14 +210,14 @@ let verifier (var_count : int) =
 	  | _                           -> failwith "This case should never occur"
 	end
       else post
-	     
+
     method compute_inv_if (if_last_inv : Types.inv) (else_last_inv : Types.inv) (post : Types.inv) : Types.inv =
       if (snd post) == []
-      then 
+      then
 	let new_post_ = s#or_dnf if_last_inv else_last_inv
 	in s#simplify_inv new_post_
       else post
-	     
+
     method compute_inv_while (pre : Types.inv) (while_last_inv : Types.inv) (inv : Types.inv) (post : Types.inv) : Types.inv =
       if (snd post) == []
       then
@@ -242,7 +242,7 @@ let verifier (var_count : int) =
 			       | Some i -> i)
 			    end
       | _                   -> failwith "This case should never occur"
-					
+
     method abstract_assignment (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pvar : Types.pvar) (pexpr : Types.pexpr) : Types.instr =
       if Hashtbl.mem var_codes pvar
       then Types.Assignment (Hashtbl.find var_codes pvar,
@@ -270,7 +270,7 @@ let verifier (var_count : int) =
       let new_invs = if List.length new_invs_ <> (List.length instrs) + 1
 		     then new_invs_@[(0, [])]
 		     else new_invs_
-      in 
+      in
       let rec aux new_invs instrs = match new_invs, instrs with
 	  _, []                                                -> new_invs, []
 	| pre::post::tinv, (Types.PAssignment(pvar, pexpr))::t -> begin
@@ -311,7 +311,7 @@ let verifier (var_count : int) =
 		 pvars;
       (*convert pprog to prog*)
       var_count, s#abstract_block var_codes pblock (0, [])
-			 
+
     (*Verify assignment*)
 
     method verify_assignment (pre : Types.inv) (var : Types.var) (expr : Types.expr) (post : Types.inv) : bool =
@@ -321,7 +321,7 @@ let verifier (var_count : int) =
       else (*cas d'une affectation non inversible*)
 	let oned_expr = s#one_expr var expr in
 	s#verify_inv (s#and_dnf (0, [[oned_expr; s#opp_expr oned_expr]]) (fourrier_motzkin var_count pre var)) post
-		   
+
     (*Verify if statement*)
 
     method verify_if (pre : Types.inv) (inv : Types.inv) (block1 : Types.block) (block2 : Types.block) (post : Types.inv) : bool =
@@ -339,7 +339,7 @@ let verifier (var_count : int) =
       && (s#verify_block block2)
 
     (*Verify while statement*)
-	   
+
     method verify_while (pre : Types.inv) (inv : Types.inv) (block : Types.block) (post : Types.inv) : bool =
       (match s#last (fst block) with
 	 Some while_end_inv -> let while_beg_inv = List.hd (fst block) in
@@ -351,7 +351,7 @@ let verifier (var_count : int) =
       && (s#verify_block block)
 
     (*Verify whole block*)
-	   
+
     method verify_block (block : Types.block) : bool = match block with
 	_, []                                                -> true
       | pre::post::tinv, (Types.Assignment (var, expr))::t   -> (s#verify_assignment pre var expr post)
@@ -365,7 +365,7 @@ let verifier (var_count : int) =
   end
 
 (*Main function*)
-							       
+
 let _ =
   let lexbuf = Lexing.from_channel stdin in
   let pprog = Parser.progc Lexer.token lexbuf in
@@ -377,7 +377,5 @@ let _ =
   Printer.print_prog (var_count, proc); flush stdout;
   if my_verifier#verify_block proc
   then print_string "Verified!\n"
-  else print_string "Could not be verified.\n"; 
+  else print_string "Could not be verified.\n";
   ()
-
-    
