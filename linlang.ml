@@ -90,8 +90,7 @@ let verifier (var_count : int) =
     method update_inv (var : Types.var) (expr0 : Types.expr) (inv : Types.inv) : Types.inv =
       fst inv, List.map (List.map (s#update_expr var expr0)) (snd inv)
 
-
-    (*Verify conj = (expr1 && expr2 && ... && exprn) => expr*)
+    (* verify satisfiability of conj = (expr1 && expr2 && ... && exprn) *)
 
     method sat_conj (conj : Types.expr list) : bool =
       let k = List.length conj in
@@ -99,32 +98,16 @@ let verifier (var_count : int) =
       let b = Array.of_list ((Fraction.foi 0)::(List.map (fun x -> x.(var_count)) conj)) in
       let a = Array.of_list ((Array.make (l + 1) (Fraction.foi 0))::(List.map s#vars_from_z_to_n conj)) in
       print_string "Verifying satifiability \n";
-      (* Printer.print_inv var_count (0, [conj]);
-      print_string " => ";
-      Printer.print_inv var_count (0, [[expr]]);
-      print_newline ();
-      print_string "Sending k:\n"; print_int k; print_newline ();
-      print_string "Sending l:\n"; print_int l; print_newline ();
-      print_string "Sending a:\n"; LinearOperations.print_matrix a;
-      print_string "Sending b:\n"; LinearOperations.print_array b;
-      print_newline (); *)
       let simplex_min = simplex a b k l in
-      if simplex_min != Fraction.Void then (print_string "Satisfiable \n" ; true) else (print_string "Not satisfiable \n" ; false)
+      simplex_min != Fraction.Void
 
     method sat_inv (inv : Types.inv) : bool =
       let _, s_inv = inv in
       List.for_all (fun ineq
           -> s#sat_conj ineq)
-          (* -> let lhs = snd (List.fold_left s#and_dnf
-                   (f_inv0, [ineq])
-                   (List.map (fun expr -> s#neg_dnf (0, [expr]))
-                       (List.tl s_inv) )
-               )
-             in List.for_all (fun conj -> List.for_all (s#verify_expr conj)
-                         (List.hd s_inv) )
-                 lhs
-         ) *)
          s_inv
+
+   (*Verify conj = (expr1 && expr2 && ... && exprn) => expr*)
 
     method verify_expr (conj : Types.expr list) (expr : Types.expr) : bool =
       let k = List.length conj in
@@ -324,23 +307,23 @@ let verifier (var_count : int) =
 	end
       else Types.Inv post
 
-    method compute_inv_if (if_last_inv : Types.extended_inv) (else_last_inv : Types.extended_inv) (post : Types.extended_inv) : Types.extended_inv =
-      match post with
+    method compute_inv_if (xif_last_inv : Types.extended_inv) (xelse_last_inv : Types.extended_inv) (xpost : Types.extended_inv) : Types.extended_inv =
+      match xpost with
       | Types.Inv (_, []) -> begin
-        let xnew_post_ = s#extended_or_dnf if_last_inv else_last_inv
+        let xnew_post_ = s#extended_or_dnf xif_last_inv xelse_last_inv
         in match xnew_post_ with
         |Types.Unsat (_) -> xnew_post_
-        |Types.Inv (new_post_) -> Types.Inv (s#simplify_inv new_post_) end
-      |_ -> post
+        |Types.Inv (new_post) -> Types.Inv (s#simplify_inv new_post) end
+      |_ -> xpost
 
-    method compute_inv_while (pre : Types.extended_inv) (while_last_inv : Types.extended_inv) (inv : Types.extended_inv) (post : Types.extended_inv) : Types.extended_inv =
-    match post with
+    method compute_inv_while (xpre : Types.extended_inv) (xwhile_last_inv : Types.extended_inv) (xinv : Types.extended_inv) (xpost : Types.extended_inv) : Types.extended_inv =
+    match xpost with
     | Types.Inv (_, []) -> begin
-      let xnew_post = s#extended_and_dnf (s#extended_neg_dnf inv) (s#extended_or_dnf while_last_inv pre)
+      let xnew_post = s#extended_and_dnf (s#extended_neg_dnf xinv) (s#extended_or_dnf xwhile_last_inv xpre)
       in match xnew_post with
       |Types.Unsat (_) -> xnew_post
-      |Types.Inv (new_post_) -> Types.Inv (s#simplify_inv new_post_) end
-    |_ -> post
+      |Types.Inv (new_post) -> Types.Inv (s#simplify_inv new_post) end
+    |_ -> xpost
 
     method last_inv_of_while : Types.instr -> Types.extended_inv = function
 	Types.While(_, b) -> begin match s#last (fst b) with
@@ -367,22 +350,22 @@ let verifier (var_count : int) =
       else failwith ("Variable " ^ pvar ^ " not bound")
 
     method abstract_if (var_codes : (Types.pvar, Types.var) Hashtbl.t)
-			(inv : Types.extended_inv) (pblock1 : Types.pblock) (pblock2 : Types.pblock) (invp1 : Types.extended_inv) (invp2 : Types.extended_inv) : Types.instr =
-      Types.If (inv,
-		s#abstract_block var_codes pblock1 invp1,
-		s#abstract_block var_codes pblock2 invp2)
+			(xinv : Types.extended_inv) (pblock1 : Types.pblock) (pblock2 : Types.pblock) (xinvp1 : Types.extended_inv) (xinvp2 : Types.extended_inv) : Types.instr =
+      Types.If (xinv,
+		s#abstract_block var_codes pblock1 xinvp1,
+		s#abstract_block var_codes pblock2 xinvp2)
 
-    method abstract_while (var_codes : (Types.pvar, Types.var) Hashtbl.t) (inv : Types.extended_inv) (pblock : Types.pblock) : Types.instr =
-      Types.While (inv,
+    method abstract_while (var_codes : (Types.pvar, Types.var) Hashtbl.t) (xinv : Types.extended_inv) (pblock : Types.pblock) : Types.instr =
+      Types.While (xinv,
 		   s#abstract_block var_codes pblock (Types.Inv (0, [])))
 
-    method abstract_block (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pblock : Types.pblock) (invp : Types.extended_inv) : Types.block =
+    method abstract_block (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pblock : Types.pblock) (xinvp : Types.extended_inv) : Types.block =
       let invs, instrs = pblock in
       let map_abstract_invs = List.map (s#abstract_inv var_codes) in
       let new_invs_ = match map_abstract_invs invs with
 	  []         -> []
 	| (Types.Inv (i, []))::t -> begin
-    match invp with
+    match xinvp with
     |Types.Unsat(_) -> Types.Unsat(i) :: t
     |Types.Inv inv -> Types.Inv((i, snd inv))::t
     end
@@ -449,30 +432,30 @@ let verifier (var_count : int) =
 
     (*Verify if statement*)
 
-    method verify_if (pre : Types.extended_inv) (inv : Types.extended_inv) (block1 : Types.block) (block2 : Types.block) (post : Types.extended_inv) : bool =
+    method verify_if (xpre : Types.extended_inv) (xinv : Types.extended_inv) (block1 : Types.block) (block2 : Types.block) (xpost : Types.extended_inv) : bool =
       (match s#last (fst block1) with
 	 Some if_end_inv -> let if_beg_inv = List.hd (fst block1) in
-			    (s#extended_verify_inv (s#extended_and_dnf inv pre) if_beg_inv)
-			    && (s#extended_verify_inv if_end_inv post)
-       | None            -> s#extended_verify_inv (s#extended_and_dnf inv pre) post)
+			    (s#extended_verify_inv (s#extended_and_dnf xinv xpre) if_beg_inv)
+			    && (s#extended_verify_inv if_end_inv xpost)
+       | None            -> s#extended_verify_inv (s#extended_and_dnf xinv xpre) xpost)
       && (match s#last (fst block2) with
 	    Some else_end_inv -> let else_beg_inv = List.hd (fst block2) in
-				 (s#extended_verify_inv (s#extended_and_dnf pre (s#extended_neg_dnf inv)) else_beg_inv)
-				 && (s#extended_verify_inv else_end_inv post)
-	  | None              -> s#extended_verify_inv (s#extended_and_dnf pre (s#extended_neg_dnf inv)) post)
+				 (s#extended_verify_inv (s#extended_and_dnf xpre (s#extended_neg_dnf xinv)) else_beg_inv)
+				 && (s#extended_verify_inv else_end_inv xpost)
+	  | None              -> s#extended_verify_inv (s#extended_and_dnf xpre (s#extended_neg_dnf xinv)) xpost)
       && (s#verify_block block1)
       && (s#verify_block block2)
 
     (*Verify while statement*)
 
-    method verify_while (pre : Types.extended_inv) (inv : Types.extended_inv) (block : Types.block) (post : Types.extended_inv) : bool =
+    method verify_while (xpre : Types.extended_inv) (xinv : Types.extended_inv) (block : Types.block) (xpost : Types.extended_inv) : bool =
       (match s#last (fst block) with
 	 Some while_end_inv -> let while_beg_inv = List.hd (fst block) in
-			       (s#extended_verify_inv (s#extended_and_dnf inv pre) while_beg_inv)
-			       && (s#extended_verify_inv (s#extended_and_dnf inv while_end_inv) while_beg_inv)
-			       && (s#extended_verify_inv (s#extended_and_dnf while_end_inv (s#extended_neg_dnf inv)) post)
+			       (s#extended_verify_inv (s#extended_and_dnf xinv xpre) while_beg_inv)
+			       && (s#extended_verify_inv (s#extended_and_dnf xinv while_end_inv) while_beg_inv)
+			       && (s#extended_verify_inv (s#extended_and_dnf while_end_inv (s#extended_neg_dnf xinv)) xpost)
        | None               -> true)
-      && (s#extended_verify_inv (s#extended_and_dnf pre (s#extended_neg_dnf inv)) post)
+      && (s#extended_verify_inv (s#extended_and_dnf xpre (s#extended_neg_dnf xinv)) xpost)
       && (s#verify_block block)
 
     (*Verify whole block*)
