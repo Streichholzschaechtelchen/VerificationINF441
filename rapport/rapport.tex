@@ -28,12 +28,25 @@
 \begin{document}
 \maketitle
 
+
+\section{Présentation}
+
+Nous avons implémenté un vérificateur d'invariants linéaires de programmes pour un sous-langage de C, qui correspond à la spécification de l'énoncé (variables entières, if et boucles whiles). Nous avons également implémenté les trois extensions proposées, c'est-à-dire la possibilité de vérifier si un point du code est inatteignable, le calcul automatique d'invariants à partir d'invariants au début et à la fin du programme ainsi qu'au début de chaque boucle, ainsi qu'une simplification des invariants.
+
 \section{Organisation du projet}
 
-Le projet comporte cinq parties principales : le corps du programme se trouve dans le fichier linlang.ml, qui s'appuie sur un lexer (lexer.mll), un parser (parser.mly), l'algorithme du simplexe (simplex.ml) et l'algorithme de Fourier-Motzkin
+Le projet, codé en Caml, comporte cinq parties principales : un fichier linlang.ml, qui s'appuie sur un lexer (lexer.mll), un parser (parser.mly), l'algorithme du simplexe (simplex.ml) et l'algorithme de Fourier-Motzkin.
+
+Le corps du programme, situé dans le fichier linlang.ml, prend un en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il commence par transformer les structures de données de façon à ce que celles-ci soient traitables par l'algorithme du simplexe. Cela est essentiellement effectué de façon récursive par les méthodes abstract\textunderscore prog, abstract\textunderscore block, abstract\textunderscore assignement, abstract\textunderscore if et abstract\textunderscore while. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
+
+Les invariants du programme ainsi transformé sont ensuite vérifiés de façon récursive par les méthodes verify\textunderscore block, verify\textunderscore assignement, verify\textunderscore if et verify\textunderscore while. Le coeur de la vérification se trouve dans la méthode verify\textunderscore expr, qui applique l'algorithme du simplexe.
 
 \section{Structures de données}
 
-On a choisi de représenter les combinaisons linéaires à l'aide de fractions, définies dans le module Fraction, afin de mener les calculs de façon purement algébrique. Les inégalités étant beaucoup sujettes à des manipulations d'algèbre linéaire, elles sont représentées dans des Fraction.frac array, et l'algorithme du simplexe est codé de manière impérative, ce qui se prête mieux aux calculs matriciels.
+On a choisi de représenter les combinaisons linéaires à l'aide de fractions, définies dans le module Fraction, afin de mener les calculs de façon purement algébrique.
+
+Les inégalités étant beaucoup sujettes à des manipulations d'algèbre linéaire, elles sont représentées dans des Fraction.frac array, et l'algorithme du simplexe est codé de manière impérative, ce qui se prête mieux aux calculs matriciels.
+
+Les invariants sont donc représentés en forme normale disjonctive par des Fraction.frac array list list.
 
 \end{document}
