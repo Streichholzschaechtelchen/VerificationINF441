@@ -1,0 +1,20 @@
+int x, y, z;
+y = x;
+{ y - x == 0 }
+z = 0;
+{ y - x == 0 && z == 0 }
+if(x > y) {
+	while(x > 0) {
+		{ unsat }
+		z = z - 1;
+		x = x - 1;
+	}
+}
+else {
+	while(x < 0) {
+		{ y <= 0 && z >= 0 }
+		z = z - y;
+		x = x + 1;
+	}
+}
+{ unsat }
