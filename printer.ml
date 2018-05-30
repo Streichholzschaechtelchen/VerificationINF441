@@ -30,6 +30,7 @@ let print_pexpr pexpr =
 
 let rec print_pinv = function
     Types.Naught (_)     -> ()
+  | Types.PUnsat (_)      -> print_string "unsat"
   | Types.Expr (_, ineq) -> begin
 			    print_pexpr ineq;
 			    print_string " >= 0"
@@ -53,7 +54,7 @@ let rec print_pinv = function
 				      invl;
 			    erase 6
 			  end
-									       
+
 let print_pprog pprog =
   print_string "======\nVariables:\n";
   let _ = List.map (fun x -> print_string x; print_string " ") (fst pprog) in
@@ -125,7 +126,7 @@ let print_pprog pprog =
      ()
 
 let print_expr var_count expr =
-  Array.iteri (fun i x -> begin if (i = var_count) then begin 			         
+  Array.iteri (fun i x -> begin if (i = var_count) then begin
 				  		     Simplex.Fraction.print_frac x;
 						     print_string " + "
 						   end
@@ -137,7 +138,7 @@ let print_expr var_count expr =
 				    print_string " + "
 				  end
 			  end
-			    
+
 	      ) expr;
     erase 3; ()
 
@@ -153,7 +154,15 @@ let rec print_inv var_count inv =
 			 end)
 	    (snd inv);
   erase 4
-									       
+
+let print_extended_inv var_count xinv =
+  match xinv with
+  |Types.Inv inv -> print_inv var_count inv
+  |Types.Unsat (x) ->
+    print_string "#";
+    print_int x;
+    print_string ": unsat"
+
 let print_prog (prog : Types.prog) : unit =
   let var_count = fst prog in
   print_string "======\nVariables:\n";
@@ -164,7 +173,7 @@ let print_prog (prog : Types.prog) : unit =
       -> begin
 	print_tabs i;
 	print_string "{ ";
-	print_inv var_count inv0;
+	print_extended_inv var_count inv0;
 	print_string " }";
 	print_newline ()
       end
@@ -172,7 +181,7 @@ let print_prog (prog : Types.prog) : unit =
       -> begin
 	 print_tabs i;
 	 print_string "{ ";
-	 print_inv var_count inv0;
+	 print_extended_inv var_count inv0;
 	 print_string " }";
 	 print_newline ();
 	 print_tabs i;
@@ -187,12 +196,12 @@ let print_prog (prog : Types.prog) : unit =
       -> begin
 	 print_tabs i;
 	 print_string "{ ";
-	 print_inv var_count inv0;
+	 print_extended_inv var_count inv0;
 	 print_string " }";
 	 print_newline ();
 	 print_tabs i;
 	 print_string "If ";
-	 print_inv var_count inv;
+	 print_extended_inv var_count inv;
 	 print_newline ();
 	 aux (i + 1) block1;
 	 print_tabs i;
@@ -204,12 +213,12 @@ let print_prog (prog : Types.prog) : unit =
       -> begin
 	 print_tabs i;
 	 print_string "{ ";
-	 print_inv var_count inv0;
+	 print_extended_inv var_count inv0;
 	 print_string " }";
 	 print_newline ();
 	 print_tabs i;
 	 print_string "While ";
-	 print_inv var_count inv;
+	 print_extended_inv var_count inv;
 	 print_newline ();
 	 aux (i + 1) block;
 	 aux i (t0, t)
