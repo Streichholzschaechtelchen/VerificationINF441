@@ -6,7 +6,7 @@
     let pos = lexbuf.Lexing.lex_curr_p in
     lexbuf.Lexing.lex_curr_p <- { pos with
 				  Lexing.pos_lnum = pos.Lexing.pos_lnum + 1 }
-						 
+
 }
 
   rule token = parse
@@ -32,6 +32,7 @@
     |"&&"                                                     {AND}
     |"||"                                                     {OR}
     |"!"                                                      {NOT}
+    |"unsat"                                                  {UNSAT}
     |'*'                                                      {TIMES}
     |'+'                                                      {PLUS}
     |'-'                                                      {MINUS}

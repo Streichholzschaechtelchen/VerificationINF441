@@ -1,13 +1,13 @@
-%token INT SEMICOLON COMMA BEG END COLON OPBR GEQ LEQ GT LT EQ ZERO CLBR EQUALS IF ELSE WHILE AND OR NOT TIMES PLUS MINUS EOF
+%token INT SEMICOLON COMMA BEG END COLON OPBR GEQ LEQ GT LT EQ ZERO CLBR EQUALS IF ELSE WHILE AND OR NOT TIMES PLUS MINUS EOF UNSAT
 %token <int> NUMBER
 %token <string> VAR
 %left OR
 %left AND
 %start progc
 %type <Types.pprog> progc
-		      
-   
-%%   
+
+
+%%
 
 progc: INT list_var SEMICOLON block EOF { $2, $4 }
      ;
@@ -45,6 +45,7 @@ instr:
 
 inv:
     /*empty*/     { Types.Naught ((Parsing.rhs_start_pos 1).Lexing.pos_lnum) }
+	 |UNSAT         {Types.PUnsat ((Parsing.rhs_start_pos 1).Lexing.pos_lnum)}
    |ineq          { let lnum = (Parsing.rhs_start_pos 1).Lexing.pos_lnum in
 		      match $1 with
 			[i]     -> Types.Expr (lnum, i)
@@ -65,7 +66,7 @@ atom_expr:
 	 |VAR TIMES NUMBER         { Some ($1), $3 }
 	 |NUMBER TIMES NUMBER      { None, $1 * $3 }
 	 ;
-	   
+
 expr:
      atom_expr           { [$1] }
     |expr PLUS atom_expr { $3::$1 }
