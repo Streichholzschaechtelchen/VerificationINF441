@@ -1,8 +1,6 @@
 int x, y, z;
 y = x;
-{ y - x == 0 }
 z = 0;
-{ y - x == 0 && z == 0 }
 if(x > y) {
 	while(x > 0) {
 		{ unsat }

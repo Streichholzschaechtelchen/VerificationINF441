@@ -20,15 +20,15 @@
 \usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
 
 %% Useful packages
-\usepackage{amsmath,amsthm,amsfonts,amssymb, stmaryrd}
+\usepackage{amsmath,amsthm,amsfonts,amssymb}
 \usepackage{graphicx}
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage{xcolor}
 
 
-\title{Projet d'informatique : Inégalités linéaires et vérifications de programmes}
-\author{Gustave Billon, François Hublet}
+\title{\textsc{pi} : Inégalités linéaires et vérification de programmes}
+\author{Gustave \textsc{Billon}, François \textsc{Hublet}}
 
 \begin{document}
 \maketitle
@@ -36,16 +36,16 @@
 
 \section{Présentation}
 
-Nous avons implémenté un vérificateur d'invariants linéaires de programmes pour un sous-langage de C, qui correspond à la spécification de l'énoncé (variables entières, \texttt{if} et boucles \texttt{while}). Nous avons également implémenté les trois extensions proposées, c'est-à-dire la possibilité de vérifier si un point du code est inatteignable, le calcul automatique d'invariants à partir d'invariants au début et à la fin du programme ainsi qu'au début de chaque boucle, ainsi qu'une simplification des invariants.
+Nous avons implémenté un vérificateur d'invariants linéaires de programmes pour un sous-langage de C \emph{très proche} de la spécification de l'énoncé et de la syntaxe des exemples fournis (variables entières, \texttt{if} et boucles \texttt{while}). L'expression \emph{très proche} se justifie par la résolution d'inconsistances observées entre les exemples et la spécification de l'énoncé, ainsi que par l'adoption d'une syntaxe légèrement plus générale quant à la forme des combinaisons linéaires et des invariants.
+
+Nous avons également implémenté les trois extensions proposées, c'est-à-dire la possibilité de vérifier si un point du code est inatteignable, le calcul automatique d'invariants à partir d'invariants au début et à la fin du programme ainsi qu'au début de chaque boucle, ainsi qu'une simplification des invariants.
 
 Voici un exemple de programme vérifié :
 
 \begin{lstlisting}
 int x, y, z;
 y = x;
-{ y - x == 0 }
 z = 0;
-{ y - x == 0 && z == 0 }
 if(x > y) {
 	while(x > 0) {
 		{ unsat }
@@ -68,14 +68,14 @@ else {
 Le projet, codé en Caml, comporte huit parties principales :
 
 \begin{itemize}
-  \item Un fichier \texttt{linlang.ml} où se trouve le corps du programme
-  \item Un fichier \texttt{lexer.mll} qui définit l'analyse lexicale du programme en entrée
-  \item Des fichiers \texttt{parser.mly}, \texttt{parser.ml}, \texttt{parser.mli} qui définissent l'analyse grammaticale du programme en entrée
-  \item Un fichier \texttt{types.ml} qui définit les types utilisés pour les arbres syntaxiques
-  \item Un fichier \texttt{simplex.ml} implémentant l'algorithme du simplexe
-  \item Des fichiers \texttt{fourrierMotzkin.ml} et \texttt{fourrierMotzkin.mli} implémentant l'algorithme de Fourrier-Motzkin
-  \item Un ensemble de programmes à vérifier pour tester l'algorithme, situés dans le dossier \texttt{exemples/}
-  \item Un \texttt{Makefile} pour la compilation. On compile l'algorithme de vérification par la commande \texttt{make linlang} puis on l'exécute avec la commande \texttt{./linlang < fichier\textunderscore à\textunderscore tester}
+  \item Un fichier \texttt{linlang.ml} où se trouve le corps du programme ;
+  \item Un fichier \texttt{lexer.mll} qui définit l'analyse lexicale du programme en entrée ;
+  \item Des fichiers \texttt{parser.mly}, \texttt{parser.ml}, \texttt{parser.mli} qui définissent l'analyse grammaticale du programme en entrée ;
+  \item Un fichier \texttt{types.ml} qui définit les types utilisés pour les arbres syntaxiques ;
+  \item Un fichier \texttt{simplex.ml} implémentant l'algorithme du simplexe ;
+  \item Des fichiers \texttt{fourrierMotzkin.ml} et \texttt{fourrierMotzkin.mli} implémentant l'algorithme de Fourrier-Motzkin ;
+  \item Un ensemble de programmes à vérifier pour tester l'algorithme, situés dans le dossier \texttt{exemples/} ;
+  \item Un \texttt{Makefile} pour la compilation. On compile l'algorithme de vérification par la commande \texttt{make linlang} puis on l'exécute avec la commande \texttt{./linlang < fichier\textunderscore à\textunderscore tester}.
 
 \end{itemize}
 
@@ -84,21 +84,21 @@ Le projet, codé en Caml, comporte huit parties principales :
 Le corps du programme, situé dans le fichier \texttt{linlang.ml}, prend en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il est structuré de la façon suivante :
 
 \begin{itemize}
-  \item La méthode \texttt{abstract\textunderscore prog}, définie récursivement avec les fonctions \texttt{abstract\textunderscore block}, \texttt{abstract\textunderscore assignement}, \texttt{abstract\textunderscore if} et \texttt{abstract\textunderscore while}, convertit l'arbre syntaxique du programme compilé à vérifier en une structure de donnée traitable par l'algorithme du simplexe. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
-  \item les méthodes \texttt{verify\textunderscore block}, \texttt{verify\textunderscore assignement}, \texttt{verify\textunderscore if} et \texttt{verify\textunderscore while} vérifient les invariants du programme ainsi transformé. Le coeur de la vérification se trouve dans la méthode \texttt{verify\textunderscore expr}, qui applique l'algorithme du simplexe.
+  \item La méthode \texttt{abstract\textunderscore prog}, définie récursivement avec les fonctions \texttt{abstract\textunderscore block}, \texttt{abstract\textunderscore assignement}, \texttt{abstract\textunderscore if} et \texttt{abstract\textunderscore while}, convertit l'arbre syntaxique du programme compilé à vérifier en une structure de données traitable par l'algorithme du simplexe. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
+  \item les méthodes \texttt{verify\textunderscore block}, \texttt{verify\textunderscore assignement}, \texttt{verify\textunderscore if} et \texttt{verify\textunderscore while} vérifient les invariants du programme ainsi transformé. Le c\oe{}ur de la vérification se trouve dans la méthode \texttt{verify\textunderscore expr}, qui applique l'algorithme du simplexe.
 \end{itemize}
 
 \paragraph{}
 
-Nous avons utilisé pour compiler le programme en entrée les programmes \texttt{Ocamllex} et \texttt{Ocamlyacc}.
+Pour effectuer l'analyse syntaxique du programme en entrée, nous avons utilisé les programmes \texttt{Ocamllex} et \texttt{Ocamlyacc}.
 
 \paragraph{}
 
 Le fichier \texttt{simplex.ml} comporte deux sous-modules :
 
 \begin{itemize}
-  \item Un module \texttt{Fraction} qui implémente les opérations élémentaires sur les rationnels
-  \item Un module \texttt{LinearOperations} qui regroupe les opérations sur les matrices de fractions
+  \item Un module \texttt{Fraction} qui implémente les opérations élémentaires sur les rationnels ;
+  \item Un module \texttt{LinearOperations} qui regroupe les opérations sur les matrices de fractions.
 \end{itemize}
 
 Le programme est structuré de la façon suivante :
@@ -115,7 +115,7 @@ Les principales structures de données utilisées sont les suivantes :
 \begin{itemize}
   \item On a choisi de représenter les combinaisons linéaires à l'aide de fractions, définies dans le module \texttt{Fraction}, afin de mener les calculs de façon purement algébrique.
   \item Les inégalités étant beaucoup sujettes à des manipulations d'algèbre linéaire, notamment pour l'algorithme du simplexe, elles sont représentées par des \texttt{Fraction.frac array}. L'algorithme du simplexe est par ailleurs codé de manière impérative, ce qui se prête mieux aux calculs matriciels.
-  \item Les programmes sont représentés par des arbres syntaxiques définis dans le fichier \texttt{types.ml}. Il y a deux ensembles de types différents dans ce fichier, le premier pour représenter le programme compilé par \texttt{Ocamllex} et \texttt{Ocamlyacc}, le second plus adapté à l'algorithme de vérification. Dans les deux cas, un programme (types \texttt{pprog} et \texttt{prog}) est une liste d'invariants et une liste d'instructions. La principale différence entre les deux formats d'abres syntaxiques se situe dans le type des invariants : la fonction \texttt{abstract\textunderscore prog} prend en entrée des invariants typés de façon récursifs (type \texttt{pinv}), et donne en sortie des invariants en forme normale disjonctive représentés par des \texttt{Fraction.frac array list list} (type \texttt{inv}, le type \texttt{extended\textunderscore inv} comportant un constructeur \texttt{Unsat} qui permet de traiter les points du code inatteignables)
+  \item Les programmes sont représentés par des arbres syntaxiques définis dans le fichier \texttt{types.ml}. Il y a deux ensembles de types différents dans ce fichier, le premier pour représenter le programme compilé par \texttt{Ocamllex} et \texttt{Ocamlyacc}, le second plus adapté à l'algorithme de vérification. Dans les deux cas, un programme (types \texttt{pprog} et \texttt{prog}) est une liste d'invariants et une liste d'instructions. La principale différence entre les deux formats d'abres syntaxiques se situe dans le type des invariants : la fonction \texttt{abstract\textunderscore prog} prend en entrée des invariants typés de façon récursifs (type \texttt{pinv}), et donne en sortie des invariants en forme normale disjonctive représentés par des \texttt{Fraction.frac array list list} (type \texttt{inv}, le type \texttt{extended\textunderscore inv} comportant un constructeur \texttt{Unsat} qui permet de traiter les points du code inatteignables).
 \end{itemize}
 
 
