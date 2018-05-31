@@ -81,7 +81,7 @@ Le projet, codé en Caml, comporte huit parties principales :
 
 \paragraph{}
 
-Le corps du programme, situé dans le fichier \texttt{linlang.ml}, prend un en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il est structuré de la façon suivante :
+Le corps du programme, situé dans le fichier \texttt{linlang.ml}, prend en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il est structuré de la façon suivante :
 
 \begin{itemize}
   \item La méthode \texttt{abstract\textunderscore prog}, définie récursivement avec les fonctions \texttt{abstract\textunderscore block}, \texttt{abstract\textunderscore assignement}, \texttt{abstract\textunderscore if} et \texttt{abstract\textunderscore while}, convertit l'arbre syntaxique du programme compilé à vérifier en une structure de donnée traitable par l'algorithme du simplexe. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
@@ -104,16 +104,19 @@ Le fichier \texttt{simplex.ml} comporte deux sous-modules :
 Le programme est structuré de la façon suivante :
 
 \begin{itemize}
-  \item La fonction \texttt{simplex\textunderscore basis} prend en entier un tableau canonique pour l'algorithme du simplexe : la première ligne représente la première ligne à minimiser et les suivantes les contraintes. La dernière colonne correspond aux constantes. Tout élément de la dernière colonne sauf les premier, qui représente la valeur de la forme linéaire à minimiser, doit être positif. Enfin, les colonnes de la matrice identité de taille $k$, où $k$ est défini comme dans l'énoncé.
-  \item La fonction \texttt{simplex} est le point d'entrée du programme. Elle prend en entrée une matrice \texttt{a}, un vecteur \texttt{b} et des entiers \texttt{k} et \texttt{l}, qui sont ceux de l'énoncé : \texttt{a} et \texttt{b} contiennent les coefficients $a_{ij}$ et $b_i$ de l'énoncé, avec les $b_i$ non nécessairement positifs. Elle construit le tableau canonique en appliquant une première fois le simplexe, puis on résout le simplexe sur ce tableau.
+  \item La fonction \texttt{simplex\textunderscore basis} prend en entier un tableau canonique pour l'algorithme du simplexe : la première ligne représente la première ligne à minimiser et les suivantes les contraintes. La dernière colonne correspond aux constantes. Tout élément de la dernière colonne sauf le premier, qui représente la valeur de la forme linéaire à minimiser, doit être positif. Enfin, les colonnes de la matrice identité de taille $k$, où $k$ est défini comme dans l'énoncé, doivent se trouver dans le tableau.
+  \item La fonction \texttt{simplex} est le point d'entrée du programme. Elle prend en entrée une matrice \texttt{a}, un vecteur \texttt{b} et des entiers \texttt{k} et \texttt{l}, qui sont ceux de l'énoncé : \texttt{a} et \texttt{b} contiennent les coefficients $a_{ij}$ et $b_i$ de l'énoncé, avec les $b_i$ non nécessairement positifs. Elle construit le tableau canonique en appliquant une première fois le simplexe, puis résout le simplexe sur ce tableau.
 \end{itemize}
 
 \section{Structures de données}
 
-On a choisi de représenter les combinaisons linéaires à l'aide de fractions, définies dans le module \texttt{Fraction}, afin de mener les calculs de façon purement algébrique.
+Les principales structures de données utilisées sont les suivantes :
 
-Les inégalités étant beaucoup sujettes à des manipulations d'algèbre linéaire, elles sont représentées par des \texttt{Fraction.frac array}, et l'algorithme du simplexe est codé de manière impérative, ce qui se prête mieux aux calculs matriciels.
+\begin{itemize}
+  \item On a choisi de représenter les combinaisons linéaires à l'aide de fractions, définies dans le module \texttt{Fraction}, afin de mener les calculs de façon purement algébrique.
+  \item Les inégalités étant beaucoup sujettes à des manipulations d'algèbre linéaire, notamment pour l'algorithme du simplexe, elles sont représentées par des \texttt{Fraction.frac array}. L'algorithme du simplexe est par ailleurs codé de manière impérative, ce qui se prête mieux aux calculs matriciels.
+  \item Les programmes sont représentés par des arbres syntaxiques définis dans le fichier \texttt{types.ml}. Il y a deux ensembles de types différents dans ce fichier, le premier pour représenter le programme compilé par \texttt{Ocamllex} et \texttt{Ocamlyacc}, le second plus adapté à l'algorithme de vérification. Dans les deux cas, un programme (types \texttt{pprog} et \texttt{prog}) est une liste d'invariants et une liste d'instructions. La principale différence entre les deux formats d'abres syntaxiques se situe dans le type des invariants : la fonction \texttt{abstract\textunderscore prog} prend en entrée des invariants typés de façon récursifs (type \texttt{pinv}), et donne en sortie des invariants en forme normale disjonctive représentés par des \texttt{Fraction.frac array list list} (type \texttt{inv}, le type \texttt{extended\textunderscore inv} comportant un constructeur \texttt{Unsat} qui permet de traiter les points du code inatteignables)
+\end{itemize}
 
-Les invariants sont donc représentés en forme normale disjonctive par des \texttt{Fraction.frac array list list}.
 
 \end{document}
