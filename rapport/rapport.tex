@@ -36,7 +36,7 @@
 
 \section{Présentation}
 
-Nous avons implémenté un vérificateur d'invariants linéaires de programmes pour un sous-langage de C, qui correspond à la spécification de l'énoncé (variables entières, if et boucles whiles). Nous avons également implémenté les trois extensions proposées, c'est-à-dire la possibilité de vérifier si un point du code est inatteignable, le calcul automatique d'invariants à partir d'invariants au début et à la fin du programme ainsi qu'au début de chaque boucle, ainsi qu'une simplification des invariants.
+Nous avons implémenté un vérificateur d'invariants linéaires de programmes pour un sous-langage de C, qui correspond à la spécification de l'énoncé (variables entières, \texttt{if} et boucles \texttt{while}). Nous avons également implémenté les trois extensions proposées, c'est-à-dire la possibilité de vérifier si un point du code est inatteignable, le calcul automatique d'invariants à partir d'invariants au début et à la fin du programme ainsi qu'au début de chaque boucle, ainsi qu'une simplification des invariants.
 
 Voici un exemple de programme vérifié :
 
@@ -65,7 +65,7 @@ else {
 
 \section{Organisation du projet}
 
-Le projet, codé en Caml, comporte six parties principales :
+Le projet, codé en Caml, comporte huit parties principales :
 
 \begin{itemize}
   \item Un fichier \texttt{linlang.ml} où se trouve le corps du programme
@@ -75,14 +75,18 @@ Le projet, codé en Caml, comporte six parties principales :
   \item Un fichier \texttt{simplex.ml} implémentant l'algorithme du simplexe
   \item Des fichiers \texttt{fourrierMotzkin.ml} et \texttt{fourrierMotzkin.mli} implémentant l'algorithme de Fourrier-Motzkin
   \item Un ensemble de programmes à vérifier pour tester l'algorithme, situés dans le dossier \texttt{exemples/}
+  \item Un \texttt{Makefile} pour la compilation. On compile l'algorithme de vérification par la commande \texttt{make linlang} puis on l'exécute avec la commande \texttt{./linlang < fichier\textunderscore à\textunderscore tester}
 
 \end{itemize}
 
 \paragraph{}
 
-Le corps du programme, situé dans le fichier linlang.ml, prend un en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il commence par transformer les structures de données de façon à ce que celles-ci soient traitables par l'algorithme du simplexe. Cela est essentiellement effectué de façon récursive par les méthodes \texttt{abstract\textunderscore prog}, \texttt{abstract\textunderscore block}, \texttt{abstract\textunderscore assignement}, \texttt{abstract\textunderscore if} et \texttt{abstract\textunderscore while}. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
+Le corps du programme, situé dans le fichier \texttt{linlang.ml}, prend un en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il est structuré de la façon suivante :
 
-Les invariants du programme ainsi transformé sont ensuite vérifiés de façon récursive par les méthodes \texttt{verify\textunderscore block}, \texttt{verify\textunderscore assignement}, \texttt{verify\textunderscore if} et \texttt{verify\textunderscore while}. Le coeur de la vérification se trouve dans la méthode \texttt{verify\textunderscore expr}, qui applique l'algorithme du simplexe.
+\begin{itemize}
+  \item La méthode \texttt{abstract\textunderscore prog}, définie récursivement avec les fonctions \texttt{abstract\textunderscore block}, \texttt{abstract\textunderscore assignement}, \texttt{abstract\textunderscore if} et \texttt{abstract\textunderscore while}, convertit l'arbre syntaxique du programme compilé à vérifier en une structure de donnée traitable par l'algorithme du simplexe. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
+  \item les méthodes \texttt{verify\textunderscore block}, \texttt{verify\textunderscore assignement}, \texttt{verify\textunderscore if} et \texttt{verify\textunderscore while} vérifient les invariants du programme ainsi transformé. Le coeur de la vérification se trouve dans la méthode \texttt{verify\textunderscore expr}, qui applique l'algorithme du simplexe.
+\end{itemize}
 
 \paragraph{}
 
