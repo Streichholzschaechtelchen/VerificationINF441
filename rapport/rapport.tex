@@ -10,6 +10,11 @@
 %% pour le code
 \usepackage{listings}
 \usepackage{color}
+\lstset { %
+    language=C++,
+    backgroundcolor=\color{black!5}, % set backgroundcolor
+    basicstyle=\footnotesize,% basic font setting
+}
 
 %% Sets page size and margins
 \usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
@@ -33,13 +38,62 @@
 
 Nous avons implémenté un vérificateur d'invariants linéaires de programmes pour un sous-langage de C, qui correspond à la spécification de l'énoncé (variables entières, if et boucles whiles). Nous avons également implémenté les trois extensions proposées, c'est-à-dire la possibilité de vérifier si un point du code est inatteignable, le calcul automatique d'invariants à partir d'invariants au début et à la fin du programme ainsi qu'au début de chaque boucle, ainsi qu'une simplification des invariants.
 
+Voici un exemple de programme vérifié :
+
+\begin{lstlisting}
+int x, y, z;
+y = x;
+{ y - x == 0 }
+z = 0;
+{ y - x == 0 && z == 0 }
+if(x > y) {
+	while(x > 0) {
+		{ unsat }
+		z = z - 1;
+		x = x - 1;
+	}
+}
+else {
+	while(x < 0) {
+		{ y <= 0 && z >= 0 }
+		z = z - y;
+		x = x + 1;
+	}
+}
+{ z >= 0 }
+\end{lstlisting}
+
 \section{Organisation du projet}
 
-Le projet, codé en Caml, comporte cinq parties principales : un fichier linlang.ml, qui s'appuie sur un lexer (lexer.mll), un parser (parser.mly), l'algorithme du simplexe (simplex.ml) et l'algorithme de Fourier-Motzkin.
+Le projet, codé en Caml, comporte cinq parties principales :
 
-Le corps du programme, situé dans le fichier linlang.ml, prend un en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il commence par transformer les structures de données de façon à ce que celles-ci soient traitables par l'algorithme du simplexe. Cela est essentiellement effectué de façon récursive par les méthodes abstract\textunderscore prog, abstract\textunderscore block, abstract\textunderscore assignement, abstract\textunderscore if et abstract\textunderscore while. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
+\begin{itemize}
+  \item Un fichier \texttt{linlang.ml} où se trouve le corps du programme
+  \item Un fichier \texttt{lexer.mll} qui définit l'analyse lexicale du programme en entrée
+  \item Des fichiers \texttt{parser.mly}, \texttt{parser.ml}, \texttt{parser.mli} qui définissent l'analyse grammaticale du programme en entrée
+  \item Un fichier \texttt{types.ml} qui définit les types utilisés pour les arbres syntaxiques
+  \item Un fichier \texttt{simplex.ml} implémentant l'algorithme du simplexe
+  \item Des fichiers \texttt{fourrierMotzkin.ml} et \texttt{fourrierMotzkin.mli} implémentant l'algorithme de Fourrier-Motzkin
 
-Les invariants du programme ainsi transformé sont ensuite vérifiés de façon récursive par les méthodes verify\textunderscore block, verify\textunderscore assignement, verify\textunderscore if et verify\textunderscore while. Le coeur de la vérification se trouve dans la méthode verify\textunderscore expr, qui applique l'algorithme du simplexe.
+\end{itemize}
+
+Le corps du programme, situé dans le fichier linlang.ml, prend un en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il commence par transformer les structures de données de façon à ce que celles-ci soient traitables par l'algorithme du simplexe. Cela est essentiellement effectué de façon récursive par les méthodes \texttt{abstract\textunderscore prog}, \texttt{abstract\textunderscore block}, \texttt{abstract\textunderscore assignement}, \texttt{abstract\textunderscore if} et \texttt{abstract\textunderscore while}. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
+
+Les invariants du programme ainsi transformé sont ensuite vérifiés de façon récursive par les méthodes \texttt{verify\textunderscore block}, \texttt{verify\textunderscore assignement}, \texttt{verify\textunderscore if} et \texttt{verify\textunderscore while}. Le coeur de la vérification se trouve dans la méthode \texttt{verify\textunderscore expr}, qui applique l'algorithme du simplexe.
+
+Le fichier \texttt{simplex.ml} comporte deux sous-modules :
+
+\begin{itemize}
+  \item Un module \texttt{Fraction} qui implémente les opérations élémentaires sur les rationnels
+  \item Un module \texttt{LinearOperations} qui regroupe les opérations sur les matrices de fractions
+\end{itemize}
+
+Le programme est structuré de la façon suivante :
+
+\begin{itemize}
+  \item La fonction \texttt{simplex\textunderscore basis} prend en entier un tableau canonique pour l'algorithme du simplexe : la première ligne représente la première ligne à minimiser et les suivantes les contraintes. La dernière colonne correspond aux constantes. Tout élément de la dernière colonne sauf les premier, qui représente la valeur de la forme linéaire à minimiser, doit être positif. Enfin, les colonnes de la matrice identité de taille $k$, où $k$ est défini comme dans l'énoncé.
+  \item La fonction \texttt{simplex} est le point d'entrée du programme. Elle prend en entrée une matrice \texttt{a}, un vecteur \texttt{b}, qui contiennent les coefficients $a_{ij}$ et $b_i$ de l'énoncé, avec les $b_i$ non nécessairement positifs. Elle construit le tableau canonique en appliquant une première fois le simplexe, puis on résout le simplexe sur ce tableau.
+\end{itemize}
 
 \section{Structures de données}
 
