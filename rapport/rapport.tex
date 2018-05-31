@@ -65,7 +65,7 @@ else {
 
 \section{Organisation du projet}
 
-Le projet, codé en Caml, comporte cinq parties principales :
+Le projet, codé en Caml, comporte six parties principales :
 
 \begin{itemize}
   \item Un fichier \texttt{linlang.ml} où se trouve le corps du programme
@@ -74,12 +74,21 @@ Le projet, codé en Caml, comporte cinq parties principales :
   \item Un fichier \texttt{types.ml} qui définit les types utilisés pour les arbres syntaxiques
   \item Un fichier \texttt{simplex.ml} implémentant l'algorithme du simplexe
   \item Des fichiers \texttt{fourrierMotzkin.ml} et \texttt{fourrierMotzkin.mli} implémentant l'algorithme de Fourrier-Motzkin
+  \item Un ensemble de programmes à vérifier pour tester l'algorithme, situés dans le dossier \texttt{exemples/}
 
 \end{itemize}
+
+\paragraph{}
 
 Le corps du programme, situé dans le fichier linlang.ml, prend un en entrée l'abre syntaxique construit par le lexer et le parser, sous forme d'une liste d'instructions et d'une liste d'invariants. Il commence par transformer les structures de données de façon à ce que celles-ci soient traitables par l'algorithme du simplexe. Cela est essentiellement effectué de façon récursive par les méthodes \texttt{abstract\textunderscore prog}, \texttt{abstract\textunderscore block}, \texttt{abstract\textunderscore assignement}, \texttt{abstract\textunderscore if} et \texttt{abstract\textunderscore while}. C'est lors de cette phase que les invariants non spécifiés dans le programme en entrée sont complétés.
 
 Les invariants du programme ainsi transformé sont ensuite vérifiés de façon récursive par les méthodes \texttt{verify\textunderscore block}, \texttt{verify\textunderscore assignement}, \texttt{verify\textunderscore if} et \texttt{verify\textunderscore while}. Le coeur de la vérification se trouve dans la méthode \texttt{verify\textunderscore expr}, qui applique l'algorithme du simplexe.
+
+\paragraph{}
+
+Nous avons utilisé pour compiler le programme en entrée les programmes \texttt{Ocamllex} et \texttt{Ocamlyacc}.
+
+\paragraph{}
 
 Le fichier \texttt{simplex.ml} comporte deux sous-modules :
 
@@ -92,15 +101,15 @@ Le programme est structuré de la façon suivante :
 
 \begin{itemize}
   \item La fonction \texttt{simplex\textunderscore basis} prend en entier un tableau canonique pour l'algorithme du simplexe : la première ligne représente la première ligne à minimiser et les suivantes les contraintes. La dernière colonne correspond aux constantes. Tout élément de la dernière colonne sauf les premier, qui représente la valeur de la forme linéaire à minimiser, doit être positif. Enfin, les colonnes de la matrice identité de taille $k$, où $k$ est défini comme dans l'énoncé.
-  \item La fonction \texttt{simplex} est le point d'entrée du programme. Elle prend en entrée une matrice \texttt{a}, un vecteur \texttt{b}, qui contiennent les coefficients $a_{ij}$ et $b_i$ de l'énoncé, avec les $b_i$ non nécessairement positifs. Elle construit le tableau canonique en appliquant une première fois le simplexe, puis on résout le simplexe sur ce tableau.
+  \item La fonction \texttt{simplex} est le point d'entrée du programme. Elle prend en entrée une matrice \texttt{a}, un vecteur \texttt{b} et des entiers \texttt{k} et \texttt{l}, qui sont ceux de l'énoncé : \texttt{a} et \texttt{b} contiennent les coefficients $a_{ij}$ et $b_i$ de l'énoncé, avec les $b_i$ non nécessairement positifs. Elle construit le tableau canonique en appliquant une première fois le simplexe, puis on résout le simplexe sur ce tableau.
 \end{itemize}
 
 \section{Structures de données}
 
-On a choisi de représenter les combinaisons linéaires à l'aide de fractions, définies dans le module Fraction, afin de mener les calculs de façon purement algébrique.
+On a choisi de représenter les combinaisons linéaires à l'aide de fractions, définies dans le module \texttt{Fraction}, afin de mener les calculs de façon purement algébrique.
 
-Les inégalités étant beaucoup sujettes à des manipulations d'algèbre linéaire, elles sont représentées dans des Fraction.frac array, et l'algorithme du simplexe est codé de manière impérative, ce qui se prête mieux aux calculs matriciels.
+Les inégalités étant beaucoup sujettes à des manipulations d'algèbre linéaire, elles sont représentées par des \texttt{Fraction.frac array}, et l'algorithme du simplexe est codé de manière impérative, ce qui se prête mieux aux calculs matriciels.
 
-Les invariants sont donc représentés en forme normale disjonctive par des Fraction.frac array list list.
+Les invariants sont donc représentés en forme normale disjonctive par des \texttt{Fraction.frac array list list}.
 
 \end{document}
