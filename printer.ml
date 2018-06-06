@@ -55,6 +55,11 @@ let rec print_pinv = function
 			    erase 6
 			  end
 
+let print_implication () =
+  Printer.print_extended_inv var_count xinv0;
+  print_string " => ";
+  Printer.print_extended_inv var_count xinv;
+
 let print_pprog pprog =
   print_string "======\nVariables:\n";
   let _ = List.map (fun x -> print_string x; print_string " ") (fst pprog) in

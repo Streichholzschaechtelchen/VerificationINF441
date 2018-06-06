@@ -4,19 +4,24 @@ open FourrierMotzkin
 let verifier (var_count : int) =
   object (s)
 
-    method opp_expr : Types.expr -> Types.expr =
+    method opp_expr
+	   : Types.expr -> Types.expr =
       Array.map Fraction.opp
 
-    method one_expr (var : Types.var) : Types.expr -> Types.expr  =
+    method one_expr (var : Types.var)
+	   : Types.expr -> Types.expr  =
       Array.mapi (fun i x -> if i = var then (Fraction.foi (-1)) else x)
 
-    method neg_ineq : Types.ineq -> Types.ineq =
+    method neg_ineq
+	   : Types.ineq -> Types.ineq =
       Array.mapi (fun i x -> if i = var_count
 			     then (Fraction.sum (Fraction.opp x)
 						(Fraction.foi (-1)))
 			     else (Fraction.opp x))
 
-    method and_dnf (inv1 : Types.inv) (inv2 : Types.inv) : Types.inv =
+    method and_dnf (inv1 : Types.inv)
+		   (inv2 : Types.inv)
+	   : Types.inv =
       let f_inv1, s_inv1 = inv1
       and f_inv2, s_inv2 = inv2 in
       let aux acc conj =
@@ -28,13 +33,16 @@ let verifier (var_count : int) =
    | _ , _ , _       -> (f_inv1, List.fold_left aux [] s_inv2)
 
 
-    method extended_and_dnf (xinv1 : Types.extended_inv) (xinv2 : Types.extended_inv) : Types.extended_inv =
+    method extended_and_dnf (xinv1 : Types.extended_inv)
+			    (xinv2 : Types.extended_inv)
+	   : Types.extended_inv =
       match (xinv1, xinv2) with
       |Types.Unsat(_), _ -> xinv1
       |_, Types.Unsat(_) -> xinv2
       |(Types.Inv inv1, Types.Inv inv2) -> Types.Inv (s#and_dnf inv1 inv2)
 
-    method neg_dnf (inv : Types.inv) : Types.inv =
+    method neg_dnf (inv : Types.inv)
+	   : Types.inv =
       fst inv,
       snd (List.fold_right s#and_dnf
 			   (List.map (fun conj
@@ -50,49 +58,64 @@ let verifier (var_count : int) =
 	  )
 
 
-    method extended_neg_dnf (xinv : Types.extended_inv) : Types.extended_inv =
+    method extended_neg_dnf (xinv : Types.extended_inv)
+	   : Types.extended_inv =
       match xinv with
       |Types.Unsat(i) -> Types.Inv(i, [])
       |Types.Inv inv -> Types.Inv (s#neg_dnf inv)
 
-    method or_dnf (inv1 : Types.inv) (inv2 : Types.inv) : Types.inv =
+    method or_dnf (inv1 : Types.inv)
+		  (inv2 : Types.inv)
+	   : Types.inv =
     let f_inv1, s_inv1 = inv1
     and f_inv2, s_inv2 = inv2 in
     (if f_inv1 = 0 then f_inv2 else f_inv1), s_inv1@s_inv2
 
-    method extended_or_dnf (xinv1 : Types.extended_inv) (xinv2 : Types.extended_inv) : Types.extended_inv =
+    method extended_or_dnf (xinv1 : Types.extended_inv)
+			   (xinv2 : Types.extended_inv)
+	   : Types.extended_inv =
       match xinv1, xinv2 with
       |Types.Unsat(_), _ -> xinv2
       |_, Types.Unsat(_) -> xinv1
       |(Types.Inv(inv1), Types.Inv(inv2)) -> Types.Inv (s#or_dnf inv1 inv2)
 
 
-    method vars_from_z_to_n (expr : Types.expr) : Types.expr =
+    method vars_from_z_to_n (expr : Types.expr)
+	   : Types.expr =
       let vars_only = Array.sub expr 0 var_count in
       Array.append vars_only (Array.map Fraction.opp vars_only)
 
     (*Auxiliary functions for verification tasks*)
 
-    method last : 'a list -> 'a option = function
+    method last
+	   : 'a list -> 'a option
+      = function
 	[]   -> None
       | [h]  -> Some h
       | h::t -> s#last t
 
     (*Verify assignment : auxiliary functions*)
 
-    method update_expr (var : Types.var) (expr0 : Types.expr) (expr : Types.expr) : Types.expr =
+    method update_expr (var   : Types.var)
+		       (expr0 : Types.expr)
+		       (expr  : Types.expr)
+	   : Types.expr =
       let coeff = Fraction.div expr.(var) expr0.(var) in
       Array.mapi (fun j x -> match j with
 			       i when i = var -> coeff
 			     | i              -> Fraction.sum x (Fraction.opp (Fraction.prod coeff expr0.(i)))
 		 ) expr
 
-    method update_inv (var : Types.var) (expr0 : Types.expr) (inv : Types.inv) : Types.inv =
+    method update_inv (var   : Types.var)
+		      (expr0 : Types.expr)
+		      (inv   : Types.inv)
+	   : Types.inv =
       fst inv, List.map (List.map (s#update_expr var expr0)) (snd inv)
 
     (* verify satisfiability of conj = (expr1 && expr2 && ... && exprn) *)
 
-    method sat_conj (conj : Types.expr list) : bool =
+    method sat_conj (conj : Types.expr list)
+	   : bool =
       let k = List.length conj in
       let l = 2 * var_count - 1 in
       let b = Array.of_list ((Fraction.foi 0)::(List.map (fun x -> x.(var_count)) conj)) in
@@ -101,15 +124,16 @@ let verifier (var_count : int) =
       let simplex_min = simplex a b k l in
       simplex_min != Fraction.Void
 
-    method sat_inv (inv : Types.inv) : bool =
+    method sat_inv (inv : Types.inv)
+	   : bool =
       let _, s_inv = inv in
-      List.for_all (fun ineq
-          -> s#sat_conj ineq)
-         s_inv
+      List.exists s#sat_conj s_inv
 
    (*Verify conj = (expr1 && expr2 && ... && exprn) => expr*)
 
-    method verify_expr (conj : Types.expr list) (expr : Types.expr) : bool =
+    method verify_expr (conj : Types.expr list)
+		       (expr : Types.expr)
+	   : bool =
       let k = List.length conj in
       let l = 2 * var_count - 1 in
       let b = Array.of_list (expr.(var_count)::(List.map (fun x -> x.(var_count)) conj)) in
@@ -139,7 +163,9 @@ let verifier (var_count : int) =
 
     (*Verify conj0 => conj*)
 
-    method verify_inv (inv0 : Types.inv) (inv : Types.inv) : bool =
+    method verify_inv (inv0 : Types.inv)
+		      (inv  : Types.inv)
+	   : bool =
       let print_implication () =
 	Printer.print_inv var_count inv0;
 	print_string " => ";
@@ -180,55 +206,20 @@ let verifier (var_count : int) =
 	  result
 	end
 
-    method extended_verify_inv (xinv0 : Types.extended_inv) (xinv : Types.extended_inv) : bool =
-      let print_implication () =
-	Printer.print_extended_inv var_count xinv0;
-	print_string " => ";
-	Printer.print_extended_inv var_count xinv;
-      in
+    method extended_verify_inv (xinv0 : Types.extended_inv)
+			       (xinv  : Types.extended_inv)
+	   : bool =
       match xinv0, xinv with
-      |Types.Unsat(_), _ -> true
-      |Types.Inv inv0, Types.Unsat(_) when not (s#sat_inv inv0) -> true
-      |_, Types.Unsat(_) -> false
-      |Types.Inv inv0, Types.Inv inv ->
-      let f_inv0, s_inv0 = inv0
-      and f_inv, s_inv = inv in
-      print_string "Verifying ";
-      print_implication ();
-      print_newline ();
-      if s_inv = []
-      then true
-      else
-	let result
-	  = List.for_all (fun ineq
-			  -> let lhs = snd (List.fold_left s#and_dnf
-							   (f_inv0, [ineq])
-							   (List.map (fun expr -> s#neg_dnf (0, [expr]))
-								     (List.tl s_inv) )
-					   )
-			     in List.for_all (fun conj -> List.for_all (s#verify_expr conj)
-								       (List.hd s_inv) )
-					     lhs
-			 )
-			 s_inv0
-	in
-	begin
-	  if result then begin
-			print_string "Successfully verified ";
-			print_implication ();
-			print_newline ()
-		      end
-	  else begin
-	      print_string "Failed to verify ";
-	      print_implication ();
-	      print_newline ()
-	    end;
-	  result
-	end
+      |Types.Unsat(_), _                -> true
+      |Types.Inv inv0, Types.Unsat(_) when not (s#sat_inv inv0)
+                                        -> true 
+      |_,              Types.Unsat(_)   -> false
+      |Types.Inv inv0, Types.Inv inv    -> s#verify_inv inv0 inv
 
     (*Simplify invariant*)
 
-    method simplify_conj (conj : Types.expr list) : Types.expr list =
+    method simplify_conj (conj : Types.expr list)
+	   : Types.expr list =
       match conj with
 	[]      -> []
       | [expr]  -> [expr]
@@ -238,7 +229,8 @@ let verifier (var_count : int) =
 			 else expr::st
 		   end
 
-    method simplify_inv (inv : Types.inv) : Types.inv =
+    method simplify_inv (inv : Types.inv)
+	   : Types.inv =
       let finv = fst inv in
       let sinv1 = List.map s#simplify_conj (snd inv) in
       let rec aux l =
@@ -254,7 +246,9 @@ let verifier (var_count : int) =
 
     (*Conversion from parsing types to (abstract) analysis types*)
 
-    method abstract_expr (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pexpr : Types.pexpr) : Types.expr =
+    method abstract_expr (var_codes : (Types.pvar, Types.var) Hashtbl.t)
+			 (pexpr     : Types.pexpr)
+	   : Types.expr =
       let expr = Array.make (var_count + 1) (Fraction.foi 0) in
       List.iter (fun x -> match x with
 			    None,   i -> expr.(var_count) <- Fraction.sum expr.(var_count) (Fraction.foi i)
@@ -269,7 +263,9 @@ let verifier (var_count : int) =
       expr
 
 
-    method abstract_inv (var_codes : (Types.pvar, Types.var) Hashtbl.t) : Types.pinv -> Types.extended_inv  = function
+    method abstract_inv (var_codes : (Types.pvar, Types.var) Hashtbl.t)
+	   : Types.pinv -> Types.extended_inv
+      = function
 	Types.Naught (i)     -> Types.Inv (i, [])
       | Types.PUnsat (i) -> Types.Unsat(i)
       | Types.Expr (i, pexpr)-> Types.Inv(i, [[s#abstract_expr var_codes pexpr]])
@@ -287,7 +283,10 @@ let verifier (var_count : int) =
            |Types.Unsat(_) -> Types.Unsat(i)
            |Types.Inv inv -> Types.Inv (i, snd inv) end
 
-    method compute_inv_assignment (new_assignment : Types.instr) (xpre : Types.extended_inv) (xpost : Types.extended_inv) : Types.extended_inv =
+    method compute_inv_assignment (new_assignment : Types.instr)
+				  (xpre           : Types.extended_inv)
+				  (xpost          : Types.extended_inv)
+	   : Types.extended_inv =
       match xpre, xpost with
       |Types.Unsat(i), Types.Inv (_, []) -> Types.Unsat(i)
       |Types.Unsat(_), _ -> xpost
@@ -307,16 +306,24 @@ let verifier (var_count : int) =
 	end
       else Types.Inv post
 
-    method compute_inv_if (xif_last_inv : Types.extended_inv) (xelse_last_inv : Types.extended_inv) (xpost : Types.extended_inv) : Types.extended_inv =
+    method compute_inv_if (xif_last_inv   : Types.extended_inv)
+			  (xelse_last_inv : Types.extended_inv)
+			  (xpost          : Types.extended_inv)
+	   : Types.extended_inv =
       match xpost with
       | Types.Inv (_, []) -> begin
-        let xnew_post_ = s#extended_or_dnf xif_last_inv xelse_last_inv
-        in match xnew_post_ with
-        |Types.Unsat (_) -> xnew_post_
-        |Types.Inv (new_post) -> Types.Inv (s#simplify_inv new_post) end
+			     let xnew_post_ = s#extended_or_dnf xif_last_inv xelse_last_inv
+			     in match xnew_post_ with
+				|Types.Unsat (_) -> xnew_post_
+				|Types.Inv (new_post) -> Types.Inv (s#simplify_inv new_post)
+			   end
       |_ -> xpost
 
-    method compute_inv_while (xpre : Types.extended_inv) (xwhile_last_inv : Types.extended_inv) (xinv : Types.extended_inv) (xpost : Types.extended_inv) : Types.extended_inv =
+    method compute_inv_while (xpre            : Types.extended_inv)
+			     (xwhile_last_inv : Types.extended_inv)
+			     (xinv            : Types.extended_inv)
+			     (xpost           : Types.extended_inv)
+	   : Types.extended_inv =
     match xpost with
     | Types.Inv (_, []) -> begin
       let xnew_post = s#extended_and_dnf (s#extended_neg_dnf xinv) (s#extended_or_dnf xwhile_last_inv xpre)
@@ -325,14 +332,18 @@ let verifier (var_count : int) =
       |Types.Inv (new_post) -> Types.Inv (s#simplify_inv new_post) end
     |_ -> xpost
 
-    method last_inv_of_while : Types.instr -> Types.extended_inv = function
+    method last_inv_of_while
+	   : Types.instr -> Types.extended_inv
+      = function
 	Types.While(_, b) -> begin match s#last (fst b) with
 				     None   -> Types.Inv (0, [])
 				   | Some i -> i
 			     end
       | _                 -> failwith "This case should never occur"
 
-    method last_invs_of_if : Types.instr -> Types.extended_inv * Types.extended_inv = function
+    method last_invs_of_if
+	   : Types.instr -> Types.extended_inv * Types.extended_inv
+      = function
 	Types.If(_, b1, b2) -> begin
 			      (match s#last (fst b1) with
 				 None   -> Types.Inv (0, [])
@@ -343,23 +354,37 @@ let verifier (var_count : int) =
 			    end
       | _                   -> failwith "This case should never occur"
 
-    method abstract_assignment (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pvar : Types.pvar) (pexpr : Types.pexpr) : Types.instr =
+    method abstract_assignment (var_codes : (Types.pvar, Types.var) Hashtbl.t)
+			       (pvar : Types.pvar)
+			       (pexpr : Types.pexpr)
+	   : Types.instr =
       if Hashtbl.mem var_codes pvar
       then Types.Assignment (Hashtbl.find var_codes pvar,
 			     s#abstract_expr var_codes pexpr)
       else failwith ("Variable " ^ pvar ^ " not bound")
 
     method abstract_if (var_codes : (Types.pvar, Types.var) Hashtbl.t)
-			(xinv : Types.extended_inv) (pblock1 : Types.pblock) (pblock2 : Types.pblock) (xinvp1 : Types.extended_inv) (xinvp2 : Types.extended_inv) : Types.instr =
+		       (xinv      : Types.extended_inv)
+		       (pblock1   : Types.pblock)
+		       (pblock2   : Types.pblock)
+		       (xinvp1    : Types.extended_inv)
+		       (xinvp2    : Types.extended_inv)
+	   : Types.instr =
       Types.If (xinv,
 		s#abstract_block var_codes pblock1 xinvp1,
 		s#abstract_block var_codes pblock2 xinvp2)
 
-    method abstract_while (var_codes : (Types.pvar, Types.var) Hashtbl.t) (xinv : Types.extended_inv) (pblock : Types.pblock) : Types.instr =
+    method abstract_while (var_codes : (Types.pvar, Types.var) Hashtbl.t)
+			  (xinv      : Types.extended_inv)
+			  (pblock    : Types.pblock)
+	   : Types.instr =
       Types.While (xinv,
 		   s#abstract_block var_codes pblock (Types.Inv (0, [])))
 
-    method abstract_block (var_codes : (Types.pvar, Types.var) Hashtbl.t) (pblock : Types.pblock) (xinvp : Types.extended_inv) : Types.block =
+    method abstract_block (var_codes : (Types.pvar, Types.var) Hashtbl.t)
+			  (pblock    : Types.pblock)
+			  (xinvp     : Types.extended_inv)
+	   : Types.block =
       let invs, instrs = pblock in
       let map_abstract_invs = List.map (s#abstract_inv var_codes) in
       let new_invs_ = match map_abstract_invs invs with
@@ -405,7 +430,8 @@ let verifier (var_count : int) =
 	| _                                                      -> failwith "This case should never occur either"
       in aux new_invs instrs
 
-    method abstract_prog (pprog : Types.pprog) : Types.prog =
+    method abstract_prog (pprog : Types.pprog)
+	   : Types.prog =
       (*create the hashtable encoding variable indices*)
       let var_codes = Hashtbl.create 10 in
       let pvars, pblock = pprog in
@@ -418,7 +444,11 @@ let verifier (var_count : int) =
 
     (*Verify assignment*)
 
-    method verify_assignment (xpre : Types.extended_inv) (var : Types.var) (expr : Types.expr) (xpost : Types.extended_inv) : bool =
+    method verify_assignment (xpre  : Types.extended_inv)
+			     (var   : Types.var)
+			     (expr  : Types.expr)
+			     (xpost : Types.extended_inv)
+	   : bool =
       match xpre, xpost with
       |Types.Unsat(_), _ -> true
       |_, Types.Unsat(_) -> false
@@ -432,7 +462,12 @@ let verifier (var_count : int) =
 
     (*Verify if statement*)
 
-    method verify_if (xpre : Types.extended_inv) (xinv : Types.extended_inv) (block1 : Types.block) (block2 : Types.block) (xpost : Types.extended_inv) : bool =
+    method verify_if (xpre   : Types.extended_inv)
+		     (xinv   : Types.extended_inv)
+		     (block1 : Types.block)
+		     (block2 : Types.block)
+		     (xpost  : Types.extended_inv)
+	   : bool =
       (match s#last (fst block1) with
 	 Some if_end_inv -> let if_beg_inv = List.hd (fst block1) in
 			    (s#extended_verify_inv (s#extended_and_dnf xinv xpre) if_beg_inv)
@@ -448,7 +483,11 @@ let verifier (var_count : int) =
 
     (*Verify while statement*)
 
-    method verify_while (xpre : Types.extended_inv) (xinv : Types.extended_inv) (block : Types.block) (xpost : Types.extended_inv) : bool =
+    method verify_while (xpre  : Types.extended_inv)
+			(xinv  : Types.extended_inv)
+			(block : Types.block)
+			(xpost : Types.extended_inv)
+	   : bool =
       (match s#last (fst block) with
 	 Some while_end_inv -> let while_beg_inv = List.hd (fst block) in
 			       (s#extended_verify_inv (s#extended_and_dnf xinv xpre) while_beg_inv)
@@ -460,7 +499,9 @@ let verifier (var_count : int) =
 
     (*Verify whole block*)
 
-    method verify_block (block : Types.block) : bool = match block with
+    method verify_block (block : Types.block)
+	   : bool
+      = match block with
 	_, []                                                -> true
       | pre::post::tinv, (Types.Assignment (var, expr))::t   -> (s#verify_assignment pre var expr post)
 								&& (s#verify_block ((post::tinv), t))

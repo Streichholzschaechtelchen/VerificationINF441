@@ -45,7 +45,7 @@ instr:
 
 inv:
     /*empty*/     { Types.Naught ((Parsing.rhs_start_pos 1).Lexing.pos_lnum) }
-	 |UNSAT         {Types.PUnsat ((Parsing.rhs_start_pos 1).Lexing.pos_lnum)}
+   |UNSAT         { Types.PUnsat ((Parsing.rhs_start_pos 1).Lexing.pos_lnum) }
    |ineq          { let lnum = (Parsing.rhs_start_pos 1).Lexing.pos_lnum in
 		      match $1 with
 			[i]     -> Types.Expr (lnum, i)
